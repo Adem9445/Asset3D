@@ -40,8 +40,11 @@ const useAssetStore = create((set, get) => ({
       if (roomId) params.append('roomId', roomId)
       if (categoryId) params.append('categoryId', categoryId)
       
+      const query = params.toString()
+      const url = query ? `${API_URL}/assets?${query}` : `${API_URL}/assets`
+
       const response = await axios.get(
-        `${API_URL}/assets?${params.toString()}`,
+        url,
         {
           headers: { Authorization: `Bearer ${token}` }
         }

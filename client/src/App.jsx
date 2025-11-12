@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './stores/authStore'
 import LoginPage from './pages/LoginPage'
@@ -15,7 +16,11 @@ import ComingSoonPage from './pages/ComingSoonPage'
 import CompanyPlaceholderPage from './pages/CompanyPlaceholderPage'
 
 function App() {
-  const { user, isAuthenticated } = useAuthStore()
+  const { user, isAuthenticated, token, checkAuth } = useAuthStore()
+
+  useEffect(() => {
+    checkAuth()
+  }, [checkAuth, token])
 
   if (!isAuthenticated) {
     return <LoginPage />
