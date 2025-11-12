@@ -122,6 +122,7 @@ const AssetViewer = () => {
   const [editMode, setEditMode] = useState('view')
   const [saveStatus, setSaveStatus] = useState('saved') // 'saved', 'saving', 'unsaved', 'error'
   const [lastSaved, setLastSaved] = useState(null)
+  const [inlineNotice, setInlineNotice] = useState(null)
   const { token } = useAuthStore()
   
   // Load data on mount
@@ -279,7 +280,10 @@ const AssetViewer = () => {
 
   const handleAddAsset = (assetData) => {
     if (!selectedRoom) {
-      alert('Vennligst velg et rom først')
+      setInlineNotice({
+        type: 'warning',
+        message: 'Velg et rom før du legger til en eiendel. Det sikrer at plasseringen blir riktig lagret.'
+      })
       return
     }
     
@@ -329,6 +333,19 @@ const AssetViewer = () => {
     // Auto-save after adding asset
     setTimeout(() => saveBuildingData(), 500)
   }
+
+  useEffect(() => {
+    if (inlineNotice) {
+      const timeout = setTimeout(() => setInlineNotice(null), 5000)
+      return () => clearTimeout(timeout)
+    }
+  }, [inlineNotice])
+
+  useEffect(() => {
+    if (selectedRoom && inlineNotice?.type === 'warning') {
+      setInlineNotice(null)
+    }
+  }, [selectedRoom, inlineNotice])
 
   const handleAddRoom = (floorId) => {
     const newRoom = {
@@ -511,6 +528,22 @@ const AssetViewer = () => {
           </div>
         </div>
       </div>
+
+      {inlineNotice && (
+        <div className="px-4 py-3 bg-yellow-50 border-y border-yellow-200 text-yellow-800 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 mt-0.5" />
+          <div className="text-sm flex-1">
+            <p className="font-medium">{inlineNotice.message}</p>
+            <button
+              type="button"
+              onClick={() => setInlineNotice(null)}
+              className="mt-2 inline-flex text-xs font-semibold text-yellow-700 hover:text-yellow-800"
+            >
+              Skjønner
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Hovedinnhold */}
       <div className="flex flex-1 overflow-hidden">

@@ -1,6 +1,6 @@
 import { useAuthStore } from '../stores/authStore'
 import { useState, useEffect } from 'react'
-import { Package, Home, Calendar, Bell, Clock, User, MapPin, CheckCircle, AlertCircle, Settings } from 'lucide-react'
+import { Package, Home, Calendar, Bell, Clock, User, MapPin, CheckCircle, AlertCircle, Settings, Inbox } from 'lucide-react'
 import useAssetStore from '../stores/assetStore'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
@@ -142,44 +142,60 @@ const UserDashboard = () => {
           </div>
           
           <div className="space-y-4">
-            {myAssets.map((asset, idx) => (
-              <div key={asset.id || idx} className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h3 className="font-medium text-gray-900">{asset.name}</h3>
-                  <p className="text-sm text-gray-600">{asset.category_name}</p>
+            {myAssets.length === 0 ? (
+              <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center bg-gray-50">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-white text-gray-500 mb-3">
+                  <Inbox size={22} />
                 </div>
-                <div className="text-right">
-                  <span className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">
-                    Aktiv
-                  </span>
-                  <p className="text-xs text-gray-500 mt-1">{asset.room_name}</p>
-                </div>
+                <h3 className="text-base font-semibold text-gray-900 mb-1">Ingen eiendeler tildelt ennå</h3>
+                <p className="text-sm text-gray-600">Når du får tildelt en eiendel vil den vises her sammen med status og plassering.</p>
               </div>
-            ))}
+            ) : (
+              myAssets.map((asset, idx) => (
+                <div key={asset.id || idx} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <h3 className="font-medium text-gray-900">{asset.name}</h3>
+                    <p className="text-sm text-gray-600">{asset.category_name}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">
+                      Aktiv
+                    </span>
+                    <p className="text-xs text-gray-500 mt-1">{asset.room_name}</p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
-        
+
         {/* Recent Activity */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold mb-4">Siste Aktivitet</h2>
           <div className="space-y-3">
-            {recentActivity.map(activity => (
-              <div key={activity.id} className="flex items-start gap-3 pb-3 border-b last:border-0">
-                <div className={`p-2 rounded-lg ${
-                  activity.status === 'completed' ? 'bg-green-100' : 'bg-yellow-100'
-                }`}>
-                  {activity.status === 'completed' 
-                    ? <CheckCircle size={16} className="text-green-600" />
-                    : <Clock size={16} className="text-yellow-600" />
-                  }
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                  <p className="text-xs text-gray-600">{activity.item}</p>
-                  <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
-                </div>
+            {recentActivity.length === 0 ? (
+              <div className="border border-dashed border-gray-200 rounded-lg p-6 text-center text-sm text-gray-600 bg-gray-50">
+                Ingen aktiviteter registrert ennå. Vi sier ifra så snart noe skjer med eiendelene dine.
               </div>
-            ))}
+            ) : (
+              recentActivity.map(activity => (
+                <div key={activity.id} className="flex items-start gap-3 pb-3 border-b last:border-0">
+                  <div className={`p-2 rounded-lg ${
+                    activity.status === 'completed' ? 'bg-green-100' : 'bg-yellow-100'
+                  }`}>
+                    {activity.status === 'completed'
+                      ? <CheckCircle size={16} className="text-green-600" />
+                      : <Clock size={16} className="text-yellow-600" />
+                    }
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">{activity.action}</p>
+                    <p className="text-xs text-gray-600">{activity.item}</p>
+                    <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
