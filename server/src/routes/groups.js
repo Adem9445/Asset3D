@@ -4,8 +4,8 @@ import { authenticateToken, requireRole } from '../middleware/auth.js'
 
 const router = express.Router()
 
-// Get all groups (admin only)
-router.get('/', authenticateToken, requireRole('admin'), async (req, res) => {
+// Get all groups (admin and group roles)
+router.get('/', authenticateToken, requireRole('admin', 'group'), async (req, res) => {
   try {
     // Mock data for demo
     const mockGroups = [

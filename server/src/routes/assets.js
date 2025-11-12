@@ -1,5 +1,8 @@
 import express from 'express'
 import pool from '../db/db.js'
+import mockDB from '../db/mockData.js'
+
+const isMockDb = () => process.env.USE_MOCK_DB === 'true'
 
 const router = express.Router()
 
@@ -7,125 +10,29 @@ const router = express.Router()
 router.get('/', async (req, res) => {
   try {
     const { roomId, categoryId } = req.query
-    
-    // Always use mock data for demo purposes (can be replaced with real DB when ready)
-    const useMockData = true // Change to false when you have real data in database
-    
-    if (process.env.USE_MOCK_DB === 'true' || useMockData) {
-      const mockAssets = [
-        { 
-          id: 1, 
-          name: 'Ergonomisk kontorstol', 
-          category_id: 1,
-          category_name: 'Møbler', 
-          room_id: 1,
-          room_name: 'Kontor 101',
-          purchase_price: 4500,
-          tenant_id: req.user.tenant_id,
-          asset_type: 'chair',
-          status: 'active',
-          created_at: new Date('2024-01-15').toISOString()
-        },
-        { 
-          id: 2, 
-          name: 'Hev/senk skrivebord', 
-          category_id: 1,
-          category_name: 'Møbler', 
-          room_id: 1,
-          room_name: 'Kontor 101',
-          purchase_price: 12000,
-          tenant_id: req.user.tenant_id,
-          asset_type: 'desk',
-          status: 'active',
-          created_at: new Date('2024-01-15').toISOString()
-        },
-        { 
-          id: 3, 
-          name: 'MacBook Pro 16"', 
-          category_id: 2,
-          category_name: 'IT Utstyr', 
-          room_id: 2,
-          room_name: 'Kontor 102',
-          purchase_price: 28000,
-          tenant_id: req.user.tenant_id,
-          asset_type: 'computer',
-          status: 'active',
-          created_at: new Date('2024-02-01').toISOString()
-        },
-        {
-          id: 4,
-          name: 'Kaffemaskin Delonghi',
-          category_id: 4,
-          category_name: 'Kjøkkenutstyr',
-          room_id: 3,
-          room_name: 'Kjøkken',
-          purchase_price: 8500,
-          tenant_id: req.user.tenant_id,
-          asset_type: 'coffee_machine',
-          status: 'active',
-          created_at: new Date('2024-02-10').toISOString()
-        },
-        {
-          id: 5,
-          name: 'Whiteboard 200x120',
-          category_id: 3,
-          category_name: 'Kontorutstyr',
-          room_id: 4,
-          room_name: 'Møterom',
-          purchase_price: 3200,
-          tenant_id: req.user.tenant_id,
-          asset_type: 'whiteboard',
-          status: 'active',
-          created_at: new Date('2024-02-15').toISOString()
-        },
-        {
-          id: 6,
-          name: 'Projektor BenQ',
-          category_id: 2,
-          category_name: 'IT Utstyr',
-          room_id: 4,
-          room_name: 'Møterom',
-          purchase_price: 12500,
-          tenant_id: req.user.tenant_id,
-          asset_type: 'projector',
-          status: 'active',
-          created_at: new Date('2024-03-01').toISOString()
-        },
-        {
-          id: 7,
-          name: 'Sofa 3-seter',
-          category_id: 1,
-          category_name: 'Møbler',
-          room_id: 5,
-          room_name: 'Lounge',
-          purchase_price: 15000,
-          tenant_id: req.user.tenant_id,
-          asset_type: 'sofa',
-          status: 'active',
-          created_at: new Date('2024-03-10').toISOString()
-        },
-        {
-          id: 8,
-          name: 'Kjøleskap Samsung',
-          category_id: 4,
-          category_name: 'Kjøkkenutstyr',
-          room_id: 3,
-          room_name: 'Kjøkken',
-          purchase_price: 9800,
-          tenant_id: req.user.tenant_id,
-          asset_type: 'refrigerator',
-          status: 'active',
-          created_at: new Date('2024-03-15').toISOString()
-        }
-      ]
-      
-      let filtered = mockAssets
-      if (roomId) filtered = filtered.filter(a => a.room_id == roomId)
-      if (categoryId) filtered = filtered.filter(a => a.category_id == categoryId)
-      
-      return res.json(filtered)
+    const tenantId = String(req.user.tenantId)
+
+    if (isMockDb()) {
+      const roomMap = new Map(
+        mockDB.rooms.map(room => [room.id, room])
+      )
+      const categoryMap = new Map(
+        mockDB.categories.map(category => [category.id, category])
+      )
+
+      const assets = mockDB.assets
+        .filter(asset => asset.tenant_id === tenantId)
+        .filter(asset => !roomId || asset.room_id === roomId)
+        .filter(asset => !categoryId || asset.category_id === categoryId)
+        .map(asset => ({
+          ...asset,
+          category_name: categoryMap.get(asset.category_id)?.name || 'Ukjent kategori',
+          room_name: roomMap.get(asset.room_id)?.name || 'Ukjent rom'
+        }))
+
+      return res.json(assets)
     }
-    
+
     // Real database query
     let queryStr = `
       SELECT a.*, c.name as category_name, r.name as room_name
@@ -134,16 +41,16 @@ router.get('/', async (req, res) => {
       LEFT JOIN rooms r ON a.room_id = r.id
       WHERE a.tenant_id = $1
     `
-    const params = [req.user.tenant_id]
-    
+    const params = [tenantId]
+
     if (roomId) {
-      queryStr += ' AND a.room_id = $2'
       params.push(roomId)
+      queryStr += ` AND a.room_id = $${params.length}`
     }
-    
+
     if (categoryId) {
-      queryStr += ` AND a.category_id = $${params.length + 1}`
       params.push(categoryId)
+      queryStr += ` AND a.category_id = $${params.length}`
     }
     
     queryStr += ' ORDER BY a.created_at DESC'
@@ -160,15 +67,8 @@ router.get('/', async (req, res) => {
 router.get('/categories', async (req, res) => {
   try {
     // Check if using mock database
-    if (process.env.USE_MOCK_DB === 'true') {
-      const mockCategories = [
-        { id: 1, name: 'Møbler', icon: 'sofa' },
-        { id: 2, name: 'IT Utstyr', icon: 'computer' },
-        { id: 3, name: 'Kontorutstyr', icon: 'briefcase' },
-        { id: 4, name: 'Kjøkkenutstyr', icon: 'coffee' },
-        { id: 5, name: 'Diverse', icon: 'package' }
-      ]
-      return res.json(mockCategories)
+    if (isMockDb()) {
+      return res.json(mockDB.categories)
     }
     
     const { rows } = await pool.query(
@@ -184,19 +84,38 @@ router.get('/categories', async (req, res) => {
 // Get single asset
 router.get('/:id', async (req, res) => {
   try {
+    if (isMockDb()) {
+      const asset = mockDB.assets.find(
+        item => item.id === req.params.id && item.tenant_id === String(req.user.tenantId)
+      )
+
+      if (!asset) {
+        return res.status(404).json({ message: 'Eiendel ikke funnet' })
+      }
+
+      const category = mockDB.categories.find(c => c.id === asset.category_id)
+      const room = mockDB.rooms.find(r => r.id === asset.room_id)
+
+      return res.json({
+        ...asset,
+        category_name: category?.name,
+        room_name: room?.name
+      })
+    }
+
     const { rows } = await pool.query(
       `SELECT a.*, c.name as category_name, r.name as room_name
        FROM assets a
        LEFT JOIN asset_categories c ON a.category_id = c.id
        LEFT JOIN rooms r ON a.room_id = r.id
        WHERE a.id = $1 AND a.tenant_id = $2`,
-      [req.params.id, req.user.tenant_id]
+      [req.params.id, req.user.tenantId]
     )
-    
+
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Eiendel ikke funnet' })
     }
-    
+
     res.json(rows[0])
   } catch (error) {
     console.error('Get asset error:', error)
@@ -219,7 +138,38 @@ router.post('/', async (req, res) => {
       scale,
       metadata
     } = req.body
-    
+
+    if (isMockDb()) {
+      const asset = {
+        id: `mock-asset-${Date.now()}`,
+        tenant_id: String(req.user.tenantId),
+        name,
+        description,
+        category_id: categoryId,
+        room_id: roomId,
+        asset_type: assetType,
+        purchase_price: purchasePrice,
+        position: position || { x: 0, y: 0, z: 0 },
+        rotation: rotation || { x: 0, y: 0, z: 0 },
+        scale: scale || { x: 1, y: 1, z: 1 },
+        metadata: metadata || {},
+        status: 'active',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      mockDB.assets.push(asset)
+
+      const category = mockDB.categories.find(c => c.id === categoryId)
+      const room = mockDB.rooms.find(r => r.id === roomId)
+
+      return res.status(201).json({
+        ...asset,
+        category_name: category?.name,
+        room_name: room?.name
+      })
+    }
+
     const { rows } = await pool.query(
       `INSERT INTO assets (
         tenant_id, name, description, category_id, room_id,
@@ -228,7 +178,7 @@ router.post('/', async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *`,
       [
-        req.user.tenant_id,
+        req.user.tenantId,
         name,
         description,
         categoryId,
@@ -241,11 +191,107 @@ router.post('/', async (req, res) => {
         metadata || {}
       ]
     )
-    
+
     res.status(201).json(rows[0])
   } catch (error) {
     console.error('Create asset error:', error)
     res.status(500).json({ message: 'Kunne ikke opprette eiendel' })
+  }
+})
+
+// Update asset fields
+router.patch('/:id', async (req, res) => {
+  try {
+    const {
+      name,
+      description,
+      categoryId,
+      roomId,
+      assetType,
+      purchasePrice,
+      status,
+      metadata
+    } = req.body
+
+    if (isMockDb()) {
+      const asset = mockDB.assets.find(
+        item => item.id === req.params.id && item.tenant_id === String(req.user.tenantId)
+      )
+
+      if (!asset) {
+        return res.status(404).json({ message: 'Eiendel ikke funnet' })
+      }
+
+      if (name !== undefined) asset.name = name
+      if (description !== undefined) asset.description = description
+      if (categoryId !== undefined) asset.category_id = categoryId
+      if (roomId !== undefined) asset.room_id = roomId
+      if (assetType !== undefined) asset.asset_type = assetType
+      if (purchasePrice !== undefined) asset.purchase_price = purchasePrice
+      if (status !== undefined) asset.status = status
+      if (metadata !== undefined) asset.metadata = metadata
+
+      asset.updated_at = new Date().toISOString()
+
+      const category = mockDB.categories.find(c => c.id === asset.category_id)
+      const room = mockDB.rooms.find(r => r.id === asset.room_id)
+
+      return res.json({
+        ...asset,
+        category_name: category?.name,
+        room_name: room?.name
+      })
+    }
+
+    const updateFields = []
+    const values = []
+
+    const addField = (field, value) => {
+      values.push(value)
+      updateFields.push(`${field} = $${values.length}`)
+    }
+
+    if (name !== undefined) addField('name', name)
+    if (description !== undefined) addField('description', description)
+    if (categoryId !== undefined) addField('category_id', categoryId)
+    if (roomId !== undefined) addField('room_id', roomId)
+    if (assetType !== undefined) addField('asset_type', assetType)
+    if (purchasePrice !== undefined) addField('purchase_price', purchasePrice)
+    if (status !== undefined) addField('status', status)
+    if (metadata !== undefined) addField('metadata', metadata)
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ message: 'Ingen felter å oppdatere' })
+    }
+
+    const query = `
+      UPDATE assets
+      SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${values.length + 1} AND tenant_id = $${values.length + 2}
+      RETURNING id
+    `
+
+    values.push(req.params.id, req.user.tenantId)
+
+    const { rows } = await pool.query(query, values)
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Eiendel ikke funnet' })
+    }
+
+    const detail = await pool.query(
+      `SELECT a.*, c.name as category_name, r.name as room_name
+       FROM assets a
+       LEFT JOIN asset_categories c ON a.category_id = c.id
+       LEFT JOIN rooms r ON a.room_id = r.id
+       WHERE a.id = $1 AND a.tenant_id = $2`,
+      [req.params.id, req.user.tenantId]
+    )
+
+    res.json(detail.rows[0])
+  } catch (error) {
+    console.error('Update asset error:', error)
+    res.status(500).json({ message: 'Kunne ikke oppdatere eiendel' })
   }
 })
 
@@ -254,18 +300,35 @@ router.patch('/:id/transform', async (req, res) => {
   try {
     const { position, rotation, scale } = req.body
     
+    if (isMockDb()) {
+      const asset = mockDB.assets.find(
+        item => item.id === req.params.id && item.tenant_id === String(req.user.tenantId)
+      )
+
+      if (!asset) {
+        return res.status(404).json({ message: 'Eiendel ikke funnet' })
+      }
+
+      asset.position = position || asset.position
+      asset.rotation = rotation || asset.rotation
+      asset.scale = scale || asset.scale
+      asset.updated_at = new Date().toISOString()
+
+      return res.json(asset)
+    }
+
     const { rows } = await pool.query(
       `UPDATE assets
        SET position = $1, rotation = $2, scale = $3, updated_at = CURRENT_TIMESTAMP
        WHERE id = $4 AND tenant_id = $5
        RETURNING *`,
-      [position, rotation, scale, req.params.id, req.user.tenant_id]
+      [position, rotation, scale, req.params.id, req.user.tenantId]
     )
-    
+
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Eiendel ikke funnet' })
     }
-    
+
     res.json(rows[0])
   } catch (error) {
     console.error('Update asset transform error:', error)
@@ -278,18 +341,38 @@ router.patch('/:id/move', async (req, res) => {
   try {
     const { roomId } = req.body
     
+    if (isMockDb()) {
+      const asset = mockDB.assets.find(
+        item => item.id === req.params.id && item.tenant_id === String(req.user.tenantId)
+      )
+
+      if (!asset) {
+        return res.status(404).json({ message: 'Eiendel ikke funnet' })
+      }
+
+      asset.room_id = roomId
+      asset.updated_at = new Date().toISOString()
+
+      const room = mockDB.rooms.find(r => r.id === roomId)
+
+      return res.json({
+        ...asset,
+        room_name: room?.name
+      })
+    }
+
     const { rows } = await pool.query(
       `UPDATE assets
        SET room_id = $1, updated_at = CURRENT_TIMESTAMP
        WHERE id = $2 AND tenant_id = $3
        RETURNING *`,
-      [roomId, req.params.id, req.user.tenant_id]
+      [roomId, req.params.id, req.user.tenantId]
     )
-    
+
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Eiendel ikke funnet' })
     }
-    
+
     res.json(rows[0])
   } catch (error) {
     console.error('Move asset error:', error)
@@ -300,15 +383,28 @@ router.patch('/:id/move', async (req, res) => {
 // Delete asset
 router.delete('/:id', async (req, res) => {
   try {
+    if (isMockDb()) {
+      const index = mockDB.assets.findIndex(
+        item => item.id === req.params.id && item.tenant_id === String(req.user.tenantId)
+      )
+
+      if (index === -1) {
+        return res.status(404).json({ message: 'Eiendel ikke funnet' })
+      }
+
+      mockDB.assets.splice(index, 1)
+      return res.json({ message: 'Eiendel slettet' })
+    }
+
     const { rowCount } = await pool.query(
       'DELETE FROM assets WHERE id = $1 AND tenant_id = $2',
-      [req.params.id, req.user.tenant_id]
+      [req.params.id, req.user.tenantId]
     )
-    
+
     if (rowCount === 0) {
       return res.status(404).json({ message: 'Eiendel ikke funnet' })
     }
-    
+
     res.json({ message: 'Eiendel slettet' })
   } catch (error) {
     console.error('Delete asset error:', error)
