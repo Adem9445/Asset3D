@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Building2, Users, Package, TrendingUp, ChevronRight, Plus, Eye, Edit2, BarChart3, FileText, Settings, Layers, Mail, MapPin, Activity } from 'lucide-react'
+import { Building2, Users, Package, TrendingUp, ChevronRight, Plus, Eye, Edit2, BarChart3, FileText, Settings, Layers, Mail, MapPin, Activity, Inbox } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import useAssetStore from '../stores/assetStore'
 import useGroupStore from '../stores/groupStore'
@@ -79,6 +79,35 @@ const GroupDashboard = () => {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    )
+  }
+
+  const canManageGroups = user?.role === 'admin'
+
+  if (!loading && groups.length === 0) {
+    return (
+      <div className="p-6 max-w-5xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-sm border border-dashed border-gray-300 p-12 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 text-gray-500 mb-6">
+            <Inbox size={32} />
+          </div>
+          <h1 className="text-2xl font-semibold text-gray-900 mb-2">Ingen grupper er registrert enda</h1>
+          <p className="text-gray-600 max-w-xl mx-auto mb-6">
+            Når du oppretter din første gruppe vil vi vise nøkkeltall, selskaper og aktivitet her. I mellomtiden kan du gå til gruppeadministrasjonen for å starte.
+          </p>
+          {canManageGroups ? (
+            <button
+              onClick={() => navigate('/admin/groups')}
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus size={16} />
+              Opprett gruppe
+            </button>
+          ) : (
+            <p className="text-sm text-gray-500">Kontakt en administrator for å få satt opp gruppene dine.</p>
+          )}
+        </div>
       </div>
     )
   }
@@ -190,56 +219,83 @@ const GroupDashboard = () => {
           </div>
           
           <div className="space-y-4">
-            {companies.map(company => (
-              <div key={company.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                <div>
-                  <h3 className="font-medium text-gray-900">{company.name}</h3>
-                  <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
-                    <span className="flex items-center gap-1">
-                      <Users size={14} />
-                      {company.employees || 0} ansatte
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Package size={14} />
-                      {company.assets || 0} assets
-                    </span>
+            {companies.length === 0 ? (
+              <div className="border-2 border-dashed border-gray-200 rounded-xl p-10 text-center bg-gray-50">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-white text-gray-500 mb-4">
+                  <Inbox size={28} />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Ingen selskaper funnet</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  {selectedGroup
+                    ? `Det er ingen selskaper registrert for ${selectedGroup.name} ennå.`
+                    : 'Velg en gruppe for å se tilknyttede selskaper.'}
+                </p>
+                <button
+                  onClick={() => navigate('/group/companies/new')}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-white border border-blue-200 rounded-lg hover:bg-blue-50"
+                >
+                  <Plus size={16} />
+                  Registrer nytt selskap
+                </button>
+              </div>
+            ) : (
+              companies.map(company => (
+                <div key={company.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                  <div>
+                    <h3 className="font-medium text-gray-900">{company.name}</h3>
+                    <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                      <span className="flex items-center gap-1">
+                        <Users size={14} />
+                        {company.employees || 0} ansatte
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Package size={14} />
+                        {company.assets || 0} assets
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => navigate(`/company/${company.id}`)}
+                      className="p-2 hover:bg-gray-200 rounded-lg"
+                      title="Vis detaljer"
+                    >
+                      <Eye size={18} />
+                    </button>
+                    <button
+                      onClick={() => navigate(`/company/${company.id}/edit`)}
+                      className="p-2 hover:bg-gray-200 rounded-lg"
+                      title="Rediger"
+                    >
+                      <Edit2 size={18} />
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => navigate(`/company/${company.id}`)}
-                    className="p-2 hover:bg-gray-200 rounded-lg"
-                    title="Vis detaljer"
-                  >
-                    <Eye size={18} />
-                  </button>
-                  <button 
-                    onClick={() => navigate(`/company/${company.id}/edit`)}
-                    className="p-2 hover:bg-gray-200 rounded-lg"
-                    title="Rediger"
-                  >
-                    <Edit2 size={18} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
-        
+
         {/* Recent Activity */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold mb-4">Nylig Aktivitet</h2>
           <div className="space-y-3">
-            {recentActivity.map(activity => (
-              <div key={activity.id} className="flex items-start gap-3 pb-3 border-b last:border-0">
-                {getActivityIcon(activity.type)}
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                  <p className="text-xs text-gray-600">{activity.group}</p>
-                  <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
-                </div>
+            {recentActivity.length === 0 ? (
+              <div className="border border-dashed border-gray-200 rounded-lg p-6 text-center text-sm text-gray-600 bg-gray-50">
+                Ingen aktivitet å vise ennå. Når noe skjer i gruppen din vil det dukke opp her.
               </div>
-            ))}
+            ) : (
+              recentActivity.map(activity => (
+                <div key={activity.id} className="flex items-start gap-3 pb-3 border-b last:border-0">
+                  {getActivityIcon(activity.type)}
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">{activity.action}</p>
+                    <p className="text-xs text-gray-600">{activity.group}</p>
+                    <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

@@ -125,11 +125,11 @@ const CompanyDashboard = () => {
   }
   
   const handleAddLocation = () => {
-    navigate('/locations')
+    navigate('/company/locations')
   }
-  
+
   const handleViewAssets = () => {
-    navigate('/assets')
+    navigate('/company/assets')
   }
   
   return (
