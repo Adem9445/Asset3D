@@ -14,6 +14,8 @@ import AssetViewer from './pages/AssetViewer'
 import Layout from './components/Layout'
 import ComingSoonPage from './pages/ComingSoonPage'
 import CompanyPlaceholderPage from './pages/CompanyPlaceholderPage'
+import NotFoundPage from './pages/NotFoundPage'
+import ErrorPage from './pages/ErrorPage'
 
 function App() {
   const { user, isAuthenticated, token, checkAuth } = useAuthStore()
@@ -165,6 +167,7 @@ function App() {
           }
         />
         <Route path="/location/:locationId" element={<AssetViewer />} />
+        <Route path="/error" element={<ErrorPage />} />
         <Route
           path="/settings"
           element={
@@ -176,9 +179,9 @@ function App() {
             />
           }
         />
-        
+
         {/* 404 */}
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Layout>
   )
