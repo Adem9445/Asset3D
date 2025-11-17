@@ -1,7 +1,7 @@
 import express from 'express'
 import bcrypt from 'bcryptjs'
 import { query } from '../db/init.js'
-import { requireRole } from '../middleware/auth.js'
+import { requireRole } from '../modules/security/middleware/rbac.js'
 
 const router = express.Router()
 

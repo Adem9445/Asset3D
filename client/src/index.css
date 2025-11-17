@@ -1,3 +1,7 @@
+@import './styles/tokens/base.css';
+@import './styles/tokens/dark.css';
+@import './styles/tokens/components.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,23 +9,43 @@
 @layer base {
   body {
     @apply antialiased;
+    background-color: var(--color-bg);
+    color: var(--color-text);
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors;
+    @apply px-4 py-2 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors;
+    background-color: var(--color-primary);
+    color: var(--color-surface);
+    border-color: transparent;
   }
-  
+
+  .btn-primary:hover {
+    background-color: var(--color-primary-hover);
+  }
+
   .btn-secondary {
-    @apply px-4 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors;
+    @apply px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-300 transition-colors;
+    background-color: var(--color-surface-muted);
+    color: var(--color-text);
   }
-  
+
+  .btn-secondary:hover {
+    background-color: var(--color-border);
+  }
+
   .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500;
+    @apply w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500;
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
   }
-  
+
   .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200;
+    @apply rounded-lg shadow-sm border;
+    background-color: var(--color-surface);
+    border-color: var(--color-border);
+    color: var(--color-text);
   }
 }

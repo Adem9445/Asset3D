@@ -61,9 +61,7 @@ function App() {
               path="/group/companies/new"
               element={
                 <ComingSoonPage
-                  title="Registrer nytt selskap"
-                  description="Snart kan du opprette nye selskaper direkte fra gruppeoversikten."
-                  actionLabel="Tilbake til selskaper"
+                  copyKey="group.companyRegistration"
                   actionTo="/group/companies"
                 />
               }
@@ -99,9 +97,7 @@ function App() {
               path="/supplier/orders"
               element={
                 <ComingSoonPage
-                  title="Bestillinger"
-                  description="Ordre- og leveringsoppfølging blir tilgjengelig her snart."
-                  actionLabel="Til leverandøroversikten"
+                  copyKey="supplier.orders"
                   actionTo="/supplier"
                 />
               }
@@ -110,9 +106,7 @@ function App() {
               path="/supplier/products/new"
               element={
                 <ComingSoonPage
-                  title="Registrer nytt produkt"
-                  description="Produktbiblioteket utvides med mulighet for å legge til egne produkter."
-                  actionLabel="Til produkter"
+                  copyKey="supplier.products"
                   actionTo="/supplier/products"
                 />
               }
@@ -125,45 +119,25 @@ function App() {
         <Route
           path="/user/assets"
           element={
-            <ComingSoonPage
-              title="Mine eiendeler"
-              description="Her får du snart en komplett oversikt over alt som er tildelt deg."
-              actionLabel="Tilbake til dashboard"
-              actionTo="/user"
-            />
+            <ComingSoonPage copyKey="user.assets" actionTo="/user" />
           }
         />
         <Route
           path="/user/request"
           element={
-            <ComingSoonPage
-              title="Ny forespørsel"
-              description="Vi legger til skjema for å sende inn nye forespørsler fra portalen."
-              actionLabel="Tilbake til dashboard"
-              actionTo="/user"
-            />
+            <ComingSoonPage copyKey="user.request" actionTo="/user" />
           }
         />
         <Route
           path="/user/maintenance"
           element={
-            <ComingSoonPage
-              title="Vedlikeholdsplan"
-              description="Planlagte oppgaver og vedlikeholdstiltak vil dukke opp her."
-              actionLabel="Tilbake til dashboard"
-              actionTo="/user"
-            />
+            <ComingSoonPage copyKey="user.maintenance" actionTo="/user" />
           }
         />
         <Route
           path="/user/profile"
           element={
-            <ComingSoonPage
-              title="Min profil"
-              description="Snart kan du oppdatere dine egne preferanser og varslinger."
-              actionLabel="Tilbake til dashboard"
-              actionTo="/user"
-            />
+            <ComingSoonPage copyKey="user.profile" actionTo="/user" />
           }
         />
         <Route path="/location/:locationId" element={<AssetViewer />} />
@@ -171,12 +145,7 @@ function App() {
         <Route
           path="/settings"
           element={
-            <ComingSoonPage
-              title="Innstillinger"
-              description="Personlige og organisasjonsbaserte innstillinger blir tilgjengelige her."
-              actionLabel="Tilbake til hjem"
-              actionTo="/"
-            />
+            <ComingSoonPage copyKey="settings.general" actionTo="/" />
           }
         />
 

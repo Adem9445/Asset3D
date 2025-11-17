@@ -4,16 +4,18 @@ import helmet from 'helmet'
 import dotenv from 'dotenv'
 import rateLimit from 'express-rate-limit'
 import authRoutes from './routes/auth.js'
-import tenantRoutes from './routes/tenants.js'
+import tenantRoutes from './modules/tenants/tenant.routes.js'
 import locationRoutes from './routes/locations.js'
 import assetRoutes from './routes/assets.js'
 import userRoutes from './routes/users.js'
 import buildingsRoutes from './routes/buildings.js'
-import groupsRoutes from './routes/groups.js'
+import groupsRoutes from './modules/groups/group.routes.js'
 import { authenticateToken } from './middleware/auth.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { initDatabase } from './db/init.js'
 import { requestSanitizer } from './modules/security/middleware/requestSanitizer.js'
+import { tenantContext } from './modules/security/middleware/tenantContext.js'
+import { csrfGuard } from './modules/security/middleware/csrfGuard.js'
 
 dotenv.config()
 const app = express()
@@ -46,10 +48,10 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes)
 app.use('/api/groups', authenticateToken, groupsRoutes)
 app.use('/api/tenants', authenticateToken, tenantRoutes)
-app.use('/api/locations', authenticateToken, locationRoutes)
-app.use('/api/assets', authenticateToken, assetRoutes)
-app.use('/api/users', authenticateToken, userRoutes)
-app.use('/api/buildings', authenticateToken, buildingsRoutes)
+app.use('/api/locations', authenticateToken, tenantContext, locationRoutes)
+app.use('/api/assets', authenticateToken, tenantContext, assetRoutes)
+app.use('/api/users', authenticateToken, tenantContext, csrfGuard, userRoutes)
+app.use('/api/buildings', authenticateToken, tenantContext, buildingsRoutes)
 
 // Error handling
 app.use(errorHandler)

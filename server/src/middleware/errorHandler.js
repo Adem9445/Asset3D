@@ -25,6 +25,14 @@ export const errorHandler = (err, req, res, next) => {
       details: err.errors
     })
   }
+
+  if (err.name === 'ZodError') {
+    return res.status(400).json({
+      error: 'Valideringsfeil',
+      message: 'Ugyldig data',
+      details: err.errors
+    })
+  }
   
   // JWT errors
   if (err.name === 'JsonWebTokenError') {

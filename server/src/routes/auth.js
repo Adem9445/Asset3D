@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { z } from 'zod'
 import { query } from '../db/init.js'
-import { authenticateToken } from '../middleware/auth.js'
+import { authenticateToken, buildCsrfTokenForUser } from '../middleware/auth.js'
 
 const router = express.Router()
 
@@ -89,9 +89,12 @@ router.post('/login', async (req, res) => {
       { expiresIn: '24h' }
     )
     
+    const csrfToken = buildCsrfTokenForUser(user.id)
+
     // Return user data and token
     res.json({
       token,
+      csrfToken,
       user: {
         id: user.id,
         email: user.email,
@@ -159,7 +162,8 @@ router.get('/me', authenticateToken, async (req, res) => {
       })
     }
     
-    res.json({ user })
+    const csrfToken = buildCsrfTokenForUser(user.id)
+    res.json({ user, csrfToken })
   } catch (error) {
     console.error('Get user error:', error)
     res.status(500).json({ 
