@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken'
 import { query } from '../db/init.js'
+import { createCsrfToken } from '../modules/security/tokens/csrfToken.js'
 
 export const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization']
@@ -64,9 +65,10 @@ export const authenticateToken = async (req, res, next) => {
       tenantId: userData.tenant_id,
       companyName: userData.company_name,
       tenantType: userData.tenant_type,
-      permissions: userData.permissions
+      permissions: userData.permissions,
+      csrfToken: createCsrfToken(userData.id)
     }
-    
+
     next()
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
@@ -83,95 +85,4 @@ export const authenticateToken = async (req, res, next) => {
   }
 }
 
-export const requireRole = (...allowedRoles) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ 
-        error: 'Ikke autentisert',
-        message: 'Du må være logget inn for å utføre denne handlingen' 
-      })
-    }
-    
-    if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ 
-        error: 'Ingen tilgang',
-        message: `Denne handlingen krever en av følgende roller: ${allowedRoles.join(', ')}` 
-      })
-    }
-    
-    next()
-  }
-}
-
-export const requireTenantAccess = async (req, res, next) => {
-  const { tenantId } = req.params
-  
-  if (!tenantId) {
-    return next()
-  }
-  
-  try {
-    // Admin har tilgang til alt
-    if (req.user.role === 'admin') {
-      return next()
-    }
-    
-    // Sjekk om bruker har tilgang til tenant
-    if (req.user.role === 'group') {
-      // Group admin kan se sine egne selskaper
-      const { rows } = await query(
-        'SELECT * FROM tenants WHERE id = $1 AND parent_tenant_id = $2',
-        [tenantId, req.user.tenantId]
-      )
-      
-      if (rows.length === 0 && tenantId !== req.user.tenantId) {
-        return res.status(403).json({ 
-          error: 'Ingen tilgang',
-          message: 'Du har ikke tilgang til denne organisasjonen' 
-        })
-      }
-    } else {
-      // Andre brukere kan bare se sin egen tenant
-      if (tenantId !== req.user.tenantId) {
-        return res.status(403).json({ 
-          error: 'Ingen tilgang',
-          message: 'Du har ikke tilgang til denne organisasjonen' 
-        })
-      }
-    }
-    
-    next()
-  } catch (error) {
-    console.error('Tenant access check error:', error)
-    res.status(500).json({ 
-      error: 'Serverfeil',
-      message: 'Kunne ikke verifisere tilgang' 
-    })
-  }
-}
-
-export const requirePermission = (permission) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ 
-        error: 'Ikke autentisert',
-        message: 'Du må være logget inn for å utføre denne handlingen' 
-      })
-    }
-    
-    // Admin har alle tillatelser
-    if (req.user.role === 'admin') {
-      return next()
-    }
-    
-    // Sjekk spesifikke tillatelser
-    if (!req.user.permissions || !req.user.permissions.includes(permission)) {
-      return res.status(403).json({ 
-        error: 'Manglende tillatelse',
-        message: `Denne handlingen krever tillatelsen: ${permission}` 
-      })
-    }
-    
-    next()
-  }
-}
+export const buildCsrfTokenForUser = (userId) => createCsrfToken(userId)
