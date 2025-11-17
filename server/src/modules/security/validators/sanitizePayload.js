@@ -1,3 +1,12 @@
+const SENSITIVE_FIELDS = new Set([
+  'password',
+  'currentPassword',
+  'newPassword',
+  'confirmPassword',
+  'token',
+  'refreshToken'
+])
+
 const sanitizeString = (value = '') => {
   return value
     .replace(/[<>]/g, (char) => ({ '<': '&lt;', '>': '&gt;' }[char]))
@@ -6,18 +15,22 @@ const sanitizeString = (value = '') => {
     .trim()
 }
 
-const sanitizeValue = (value) => {
+const shouldSkipSanitization = (key) => {
+  return key && SENSITIVE_FIELDS.has(key)
+}
+
+const sanitizeValue = (value, key) => {
   if (typeof value === 'string') {
-    return sanitizeString(value)
+    return shouldSkipSanitization(key) ? value : sanitizeString(value)
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => sanitizeValue(item))
+    return value.map((item) => sanitizeValue(item, key))
   }
 
   if (value && typeof value === 'object') {
     return Object.keys(value).reduce((acc, key) => {
-      acc[key] = sanitizeValue(value[key])
+      acc[key] = sanitizeValue(value[key], key)
       return acc
     }, {})
   }
