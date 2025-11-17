@@ -66,6 +66,8 @@ const AssetViewer = () => {
     [selectedBuilding]
   )
 
+  const baseAssets = getFilteredAssets()
+
   const latestAssetTimestamp = useMemo(() => {
     if (!baseAssets.length) {
       return null
@@ -124,8 +126,6 @@ const AssetViewer = () => {
   useEffect(() => {
     fetchAssets(selectedRoomId, categoryId).catch(() => {})
   }, [selectedRoomId, categoryId, fetchAssets])
-
-  const baseAssets = getFilteredAssets()
   const filteredAssets = useMemo(() => {
     if (!selectedBuilding || selectedRoomId) {
       return baseAssets
