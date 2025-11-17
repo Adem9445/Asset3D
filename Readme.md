@@ -240,3 +240,12 @@ Auth:       POST /api/auth/login, /api/auth/init-demo
 ## 📝 Lisens
 
 Proprietær - Alle rettigheter forbeholdt
+
+## 📦 Kjøre `cleanup-react-app`
+
+Noen kunder ber oss starte opp repoet [`cleanup-react-app`](https://github.com/niallpaterson/cleanup-react-app).
+Vi kan ikke klone eksterne GitHub-repoer direkte fra dette miljøet (proxyen returnerer
+`CONNECT tunnel failed, response 403`), men du kan følge den detaljerte veiledningen i
+[`docs/cleanup-react-app-setup.md`](docs/cleanup-react-app-setup.md) for å kjøre prosjektet
+lokalt på din egen maskin. Dokumentet dekker forutsetninger, kloning, installasjon,
+oppstart, bygging og feilsøking.
