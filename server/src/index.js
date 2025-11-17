@@ -13,6 +13,7 @@ import groupsRoutes from './routes/groups.js'
 import { authenticateToken } from './middleware/auth.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { initDatabase } from './db/init.js'
+import { requestSanitizer } from './modules/security/middleware/requestSanitizer.js'
 
 dotenv.config()
 const app = express()
@@ -33,6 +34,7 @@ app.use(cors({
 }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+app.use(requestSanitizer)
 app.use('/api', limiter)
 
 // Health check
