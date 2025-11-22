@@ -12,6 +12,7 @@ import {
   ContactShadows
 } from '@react-three/drei'
 import * as THREE from 'three'
+import { prepareAssetFor3D } from '../../utils/assetTypeNormalizer'
 
 /**
  * Floor component - renders a single floor with rooms
@@ -129,7 +130,7 @@ const RoomVisualization = ({
       {showAssets && room.assets?.map((asset) => (
         <AssetMesh
           key={asset.id}
-          asset={asset}
+          asset={prepareAssetFor3D(asset)}
           opacity={opacity}
         />
       ))}

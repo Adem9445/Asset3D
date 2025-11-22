@@ -24,6 +24,7 @@ import { DeskAsset, OfficeChairAsset, SofaAsset, BookshelfAsset, MeetingTableAss
 import { ComputerAsset, PrinterAsset, PhoneAsset, WhiteboardAsset, FilingCabinetAsset, TrashBinAsset } from './assets/OfficeAssets'
 import { CoffeeMachineAsset, MicrowaveAsset, RefrigeratorAsset, WaterCoolerAsset, PlantAsset } from './assets/KitchenAssets'
 import { DishwasherAsset, WashingMachineAsset, DryerAsset, FreezerAsset, StoveAsset, VentilatorAsset } from './assets/ApplianceAssets'
+import { prepareAssetFor3D } from '../../utils/assetTypeNormalizer'
 
 /**
  * Hovedkomponent for 3D rom-editor
@@ -106,6 +107,8 @@ const RoomEditor3D = ({
       dragData.object.children[0].material.emissiveIntensity = 0.3
     }
   }
+
+  const preparedAssets = assets.map((asset) => prepareAssetFor3D(asset))
 
   return (
     <div className="relative w-full h-full">
@@ -280,7 +283,7 @@ const RoomEditor3D = ({
 
           {/* Assets med fysikk */}
           <Physics gravity={[0, -9.81, 0]} debug={false}>
-            {assets.map((asset, index) => {
+            {preparedAssets.map((asset, index) => {
               const AssetComponent = AssetComponents[asset.type]
               if (!AssetComponent) return null
 
