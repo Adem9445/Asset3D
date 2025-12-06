@@ -342,6 +342,7 @@ const RoomEditor3D = ({
                         position={[0, 0, 0]}
                         rotation={asset.rotation || [0, 0, 0]}
                         scale={asset.scale || [1, 1, 1]}
+                        dimensions={asset.dimensions}
                         color={asset.color}
                         selected={asset.id === selectedAssetId}
                       />
