@@ -22,6 +22,7 @@ export const authenticateToken = async (req, res, next) => {
     if (process.env.USE_MOCK_DB === 'true') {
       const mockDB = (await import('../db/mockData.js')).default
       const foundUser = mockDB.users.find(u => u.id === decoded.userId && u.is_active)
+
       if (foundUser) {
         const tenant = mockDB.tenants.find(t => t.id === foundUser.tenant_id)
         userData = {

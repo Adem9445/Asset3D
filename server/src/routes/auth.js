@@ -72,10 +72,12 @@ router.post('/login', async (req, res) => {
     }
     
     // Update last login
-    await query(
-      'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
-      [user.id]
-    )
+    if (process.env.USE_MOCK_DB !== 'true') {
+      await query(
+        'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
+        [user.id]
+      )
+    }
     
     // Generate JWT token
     const token = jwt.sign(
