@@ -194,7 +194,7 @@ router.post('/register', async (req, res) => {
     const passwordHash = await bcrypt.hash(validatedData.password, 10)
     
     // Create tenant if needed
-    let tenantId = validatedData.tenantId
+    let tenantId = validatedData.tenantId || null
     
     if (!tenantId && validatedData.role === 'company') {
       // Create a new company tenant
