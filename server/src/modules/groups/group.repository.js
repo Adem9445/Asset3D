@@ -157,7 +157,7 @@ export const groupRepository = {
     )
 
     return { groupId, companies: rows[0]?.companies || 0 }
-  }
+  },
 
   async linkCompanyToGroup(groupId, companyId) {
     if (useMock()) {
