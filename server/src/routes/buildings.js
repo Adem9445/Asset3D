@@ -116,23 +116,34 @@ const buildDatabaseBuilding = async (building, tenantId) => {
     [building.id]
   )
 
-  const rooms = []
+  const roomIds = roomsResult.rows.map(r => r.id)
+  let allAssets = []
 
-  for (const room of roomsResult.rows) {
+  if (roomIds.length > 0) {
     const assetResult = await pool.query(
       `SELECT a.*, c.name as category_name
        FROM assets a
        LEFT JOIN asset_categories c ON a.category_id = c.id
-       WHERE a.room_id = $1 AND a.tenant_id = $2
+       WHERE a.room_id = ANY($1) AND a.tenant_id = $2
        ORDER BY a.created_at DESC`,
-      [room.id, tenantId]
+      [roomIds, tenantId]
     )
-
-    rooms.push({
-      ...room,
-      assets: assetResult.rows
-    })
+    allAssets = assetResult.rows
   }
+
+  // Group assets by room_id
+  const assetsByRoom = new Map()
+  allAssets.forEach(asset => {
+    if (!assetsByRoom.has(asset.room_id)) {
+      assetsByRoom.set(asset.room_id, [])
+    }
+    assetsByRoom.get(asset.room_id).push(asset)
+  })
+
+  const rooms = roomsResult.rows.map(room => ({
+    ...room,
+    assets: assetsByRoom.get(room.id) || []
+  }))
 
   return {
     ...building,
@@ -140,6 +151,8 @@ const buildDatabaseBuilding = async (building, tenantId) => {
     floors: createFloorStructure(rooms, building.data?.floors)
   }
 }
+
+export { buildDatabaseBuilding }
 
 /**
  * Get all buildings for tenant
