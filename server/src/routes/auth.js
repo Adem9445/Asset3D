@@ -1,11 +1,21 @@
 import express from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import rateLimit from 'express-rate-limit'
 import { z } from 'zod'
 import { query } from '../db/init.js'
 import { authenticateToken, buildCsrfTokenForUser } from '../middleware/auth.js'
 
 const router = express.Router()
+
+// Strict rate limiter for auth endpoints to prevent brute force
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 20, // Limit each IP to 20 requests per windowMs
+  message: { message: 'For mange innloggingsforsøk. Vennligst prøv igjen om 15 minutter.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
 
 // Validation schemas
 const loginSchema = z.object({
@@ -22,7 +32,7 @@ const registerSchema = z.object({
 })
 
 // Login
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   try {
     // Validate input
     const validatedData = loginSchema.parse(req.body)
@@ -175,7 +185,7 @@ router.get('/me', authenticateToken, async (req, res) => {
 })
 
 // Register new user (admin only in production, open in demo)
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   try {
     // Validate input
     const validatedData = registerSchema.parse(req.body)
@@ -317,8 +327,13 @@ router.put('/change-password', authenticateToken, async (req, res) => {
 })
 
 // Initialize demo users
-router.post('/init-demo', async (req, res) => {
+router.post('/init-demo', authLimiter, async (req, res) => {
   try {
+    // Block in production
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(404).json({ message: 'Ikke tilgjengelig i produksjon' })
+    }
+
     // Create demo tenants
     const { rows: adminTenant } = await query(
       `INSERT INTO tenants (name, type) 
