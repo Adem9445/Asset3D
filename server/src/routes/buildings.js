@@ -110,29 +110,39 @@ const buildMockBuilding = (building, tenantId) => {
   }
 }
 
-const buildDatabaseBuilding = async (building, tenantId) => {
+export const buildDatabaseBuilding = async (building, tenantId) => {
   const roomsResult = await pool.query(
     `SELECT * FROM rooms WHERE building_id = $1 ORDER BY floor_number, name`,
     [building.id]
   )
 
-  const rooms = []
+  const roomIds = roomsResult.rows.map(r => r.id)
+  let assetsByRoom = new Map()
 
-  for (const room of roomsResult.rows) {
-    const assetResult = await pool.query(
+  if (roomIds.length > 0) {
+    // Fetch all assets for these rooms in a single query
+    const assetsResult = await pool.query(
       `SELECT a.*, c.name as category_name
        FROM assets a
        LEFT JOIN asset_categories c ON a.category_id = c.id
-       WHERE a.room_id = $1 AND a.tenant_id = $2
+       WHERE a.room_id = ANY($1) AND a.tenant_id = $2
        ORDER BY a.created_at DESC`,
-      [room.id, tenantId]
+      [roomIds, tenantId]
     )
 
-    rooms.push({
-      ...room,
-      assets: assetResult.rows
-    })
+    // Group assets by room_id
+    for (const asset of assetsResult.rows) {
+      if (!assetsByRoom.has(asset.room_id)) {
+        assetsByRoom.set(asset.room_id, [])
+      }
+      assetsByRoom.get(asset.room_id).push(asset)
+    }
   }
+
+  const rooms = roomsResult.rows.map(room => ({
+    ...room,
+    assets: assetsByRoom.get(room.id) || []
+  }))
 
   return {
     ...building,
