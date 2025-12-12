@@ -16,6 +16,7 @@ import { initDatabase } from './db/init.js'
 import { requestSanitizer } from './modules/security/middleware/requestSanitizer.js'
 import { tenantContext } from './modules/security/middleware/tenantContext.js'
 import { csrfGuard } from './modules/security/middleware/csrfGuard.js'
+import { logger, httpLogger } from './utils/logger.js'
 
 dotenv.config()
 const app = express()
@@ -29,6 +30,7 @@ const limiter = rateLimit({
 })
 
 // Middleware
+app.use(httpLogger)
 app.use(helmet())
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
@@ -75,18 +77,18 @@ const startServer = async () => {
     }
     
     app.listen(PORT, () => {
-      console.log(`🚀 Server kjører på port ${PORT}`)
-      console.log(`📍 API tilgjengelig på http://localhost:${PORT}/api`)
+      logger.info(`🚀 Server kjører på port ${PORT}`)
+      logger.info(`📍 API tilgjengelig på http://localhost:${PORT}/api`)
       if (process.env.USE_MOCK_DB === 'true') {
-        console.log('⚠️  DEMO-MODUS: Data lagres kun i minnet')
-        console.log('📧 Demo brukere:')
-        console.log('   - admin@asset3d.no / demo123')
-        console.log('   - company@asset3d.no / demo123')
-        console.log('   - user@asset3d.no / demo123')
+        logger.warn('⚠️  DEMO-MODUS: Data lagres kun i minnet')
+        logger.info('📧 Demo brukere:')
+        logger.info('   - admin@asset3d.no / demo123')
+        logger.info('   - company@asset3d.no / demo123')
+        logger.info('   - user@asset3d.no / demo123')
       }
     })
   } catch (error) {
-    console.error('Kunne ikke starte server:', error)
+    logger.error({ err: error }, 'Kunne ikke starte server')
     process.exit(1)
   }
 }
