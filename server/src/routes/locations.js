@@ -85,14 +85,22 @@ router.get('/:id', async (req, res) => {
       [req.params.id]
     )
     
-    // Get rooms for each floor
-    for (const floor of floors) {
-      const { rows: rooms } = await query(
-        'SELECT * FROM rooms WHERE floor_id = $1 ORDER BY name',
-        [floor.id]
+    // Get all rooms for these floors in one query (N+1 optimization)
+    const floorIds = floors.map(f => f.id)
+    let allRooms = []
+
+    if (floorIds.length > 0) {
+      const { rows } = await query(
+        'SELECT * FROM rooms WHERE floor_id = ANY($1) ORDER BY name',
+        [floorIds]
       )
-      floor.rooms = rooms
+      allRooms = rows
     }
+
+    // Map rooms to floors
+    floors.forEach(floor => {
+      floor.rooms = allRooms.filter(r => r.floor_id === floor.id)
+    })
     
     res.json({ ...location[0], floors })
   } catch (error) {
