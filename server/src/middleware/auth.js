@@ -14,7 +14,12 @@ export const authenticateToken = async (req, res, next) => {
   }
   
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
+    const jwtSecret = process.env.JWT_SECRET
+    if (!jwtSecret) {
+      throw new Error('JWT_SECRET is not defined')
+    }
+
+    const decoded = jwt.verify(token, jwtSecret)
     
     let userData = null
     

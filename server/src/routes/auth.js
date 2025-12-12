@@ -90,6 +90,11 @@ router.post('/login', authLimiter, async (req, res) => {
     }
     
     // Generate JWT token
+    const jwtSecret = process.env.JWT_SECRET
+    if (!jwtSecret) {
+      throw new Error('JWT_SECRET is not defined')
+    }
+
     const token = jwt.sign(
       { 
         userId: user.id,
@@ -97,7 +102,7 @@ router.post('/login', authLimiter, async (req, res) => {
         role: user.role,
         tenantId: user.tenant_id 
       },
-      process.env.JWT_SECRET || 'your-secret-key',
+      jwtSecret,
       { expiresIn: '24h' }
     )
     
