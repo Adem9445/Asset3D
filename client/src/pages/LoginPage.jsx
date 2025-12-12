@@ -105,20 +105,27 @@ const LoginPage = () => {
 
           {/* Demo brukere */}
           <div className="mt-8 pt-6 border-t border-gray-200">
-            <p className="text-xs text-gray-500 text-center mb-4">Demo-brukere for testing:</p>
+            <p className="text-xs text-gray-500 text-center mb-4">Velg en demo-bruker for å fylle ut skjemaet:</p>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="bg-gray-50 p-2 rounded">
-                <span className="font-medium">Admin:</span> admin@asset3d.no
-              </div>
-              <div className="bg-gray-50 p-2 rounded">
-                <span className="font-medium">Selskap:</span> company@asset3d.no
-              </div>
-              <div className="bg-gray-50 p-2 rounded">
-                <span className="font-medium">Bruker:</span> user@asset3d.no
-              </div>
-              <div className="bg-gray-50 p-2 rounded">
-                <span className="font-medium">Leverandør:</span> supplier@asset3d.no
-              </div>
+              {[
+                { label: 'Admin', email: 'admin@asset3d.no' },
+                { label: 'Selskap', email: 'company@asset3d.no' },
+                { label: 'Bruker', email: 'user@asset3d.no' },
+                { label: 'Leverandør', email: 'supplier@asset3d.no' }
+              ].map((user) => (
+                <button
+                  key={user.email}
+                  type="button"
+                  onClick={() => {
+                    setEmail(user.email)
+                    setPassword('demo123')
+                  }}
+                  className="bg-gray-50 hover:bg-gray-100 p-2 rounded text-left transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  aria-label={`Fyll ut som ${user.label}`}
+                >
+                  <span className="font-medium">{user.label}:</span> {user.email}
+                </button>
+              ))}
             </div>
             <p className="text-xs text-gray-500 text-center mt-2">Passord: demo123</p>
           </div>
