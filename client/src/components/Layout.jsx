@@ -86,6 +86,8 @@ const Layout = ({ children }) => {
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 className="p-2 rounded-md text-gray-600 hover:bg-gray-100 lg:hidden"
+                aria-label={isSidebarOpen ? 'Lukk meny' : 'Åpne meny'}
+                aria-expanded={isSidebarOpen}
               >
                 {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
@@ -101,6 +103,8 @@ const Layout = ({ children }) => {
               <button
                 onClick={handleLogout}
                 className="p-2 rounded-md text-gray-600 hover:bg-gray-100"
+                aria-label="Logg ut"
+                title="Logg ut"
               >
                 <LogOut size={20} />
               </button>
