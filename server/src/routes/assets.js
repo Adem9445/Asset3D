@@ -1,10 +1,42 @@
 import express from 'express'
 import pool from '../db/db.js'
 import mockDB from '../db/mockData.js'
+import { z } from 'zod'
 
 const isMockDb = () => process.env.USE_MOCK_DB === 'true'
 
 const router = express.Router()
+
+// Validation schemas
+const transformSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  z: z.number()
+})
+
+const createAssetSchema = z.object({
+  name: z.string().min(1, 'Navn er påkrevd'),
+  description: z.string().optional(),
+  // IDs must be strings. UUID validation is skipped to support Demo Mode (mock-asset-1 etc)
+  categoryId: z.string().min(1).optional(),
+  roomId: z.string().min(1).optional(),
+  assetType: z.string().optional(),
+  purchasePrice: z.number().optional(),
+  position: transformSchema.optional(),
+  rotation: transformSchema.optional(),
+  scale: transformSchema.optional(),
+  metadata: z.record(z.any()).optional()
+})
+
+const updateAssetSchema = createAssetSchema.partial().extend({
+  status: z.string().optional()
+})
+
+const transformUpdateSchema = z.object({
+  position: transformSchema.optional(),
+  rotation: transformSchema.optional(),
+  scale: transformSchema.optional()
+})
 
 // Get all assets for tenant
 router.get('/', async (req, res) => {
@@ -126,6 +158,7 @@ router.get('/:id', async (req, res) => {
 // Create new asset
 router.post('/', async (req, res) => {
   try {
+    const validatedData = createAssetSchema.parse(req.body)
     const {
       name,
       description,
@@ -137,7 +170,7 @@ router.post('/', async (req, res) => {
       rotation,
       scale,
       metadata
-    } = req.body
+    } = validatedData
 
     if (isMockDb()) {
       const asset = {
@@ -194,6 +227,12 @@ router.post('/', async (req, res) => {
 
     res.status(201).json(rows[0])
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        message: 'Valideringsfeil',
+        errors: error.errors
+      })
+    }
     console.error('Create asset error:', error)
     res.status(500).json({ message: 'Kunne ikke opprette eiendel' })
   }
@@ -202,6 +241,7 @@ router.post('/', async (req, res) => {
 // Update asset fields
 router.patch('/:id', async (req, res) => {
   try {
+    const validatedData = updateAssetSchema.parse(req.body)
     const {
       name,
       description,
@@ -211,7 +251,7 @@ router.patch('/:id', async (req, res) => {
       purchasePrice,
       status,
       metadata
-    } = req.body
+    } = validatedData
 
     if (isMockDb()) {
       const asset = mockDB.assets.find(
@@ -290,6 +330,12 @@ router.patch('/:id', async (req, res) => {
 
     res.json(detail.rows[0])
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        message: 'Valideringsfeil',
+        errors: error.errors
+      })
+    }
     console.error('Update asset error:', error)
     res.status(500).json({ message: 'Kunne ikke oppdatere eiendel' })
   }
@@ -298,7 +344,8 @@ router.patch('/:id', async (req, res) => {
 // Update asset position/rotation/scale
 router.patch('/:id/transform', async (req, res) => {
   try {
-    const { position, rotation, scale } = req.body
+    const validatedData = transformUpdateSchema.parse(req.body)
+    const { position, rotation, scale } = validatedData
     
     if (isMockDb()) {
       const asset = mockDB.assets.find(
@@ -331,6 +378,12 @@ router.patch('/:id/transform', async (req, res) => {
 
     res.json(rows[0])
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        message: 'Valideringsfeil',
+        errors: error.errors
+      })
+    }
     console.error('Update asset transform error:', error)
     res.status(500).json({ message: 'Kunne ikke oppdatere eiendel' })
   }
@@ -341,6 +394,10 @@ router.patch('/:id/move', async (req, res) => {
   try {
     const { roomId } = req.body
     
+    if (!roomId) {
+      return res.status(400).json({ message: 'Rom ID mangler' })
+    }
+
     if (isMockDb()) {
       const asset = mockDB.assets.find(
         item => item.id === req.params.id && item.tenant_id === String(req.user.tenantId)
