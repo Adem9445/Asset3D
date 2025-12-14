@@ -129,26 +129,34 @@ const ExportImportModal = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="export-import-title"
+    >
       <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="border-b p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 id="export-import-title" className="text-2xl font-bold text-gray-900">
               Eksport / Import {dataType === 'room' ? 'Rom' : dataType === 'building' ? 'Bygning' : 'Assets'}
             </h2>
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="Lukk"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
           
           {/* Tabs */}
-          <div className="flex gap-4 mt-4">
+          <div className="flex gap-4 mt-4" role="tablist">
             <button
               onClick={() => setActiveTab('export')}
+              role="tab"
+              aria-selected={activeTab === 'export'}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 activeTab === 'export' 
                   ? 'bg-blue-100 text-blue-700' 
@@ -160,6 +168,8 @@ const ExportImportModal = ({
             </button>
             <button
               onClick={() => setActiveTab('import')}
+              role="tab"
+              aria-selected={activeTab === 'import'}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 activeTab === 'import' 
                   ? 'bg-blue-100 text-blue-700' 
@@ -171,6 +181,8 @@ const ExportImportModal = ({
             </button>
             <button
               onClick={() => setActiveTab('share')}
+              role="tab"
+              aria-selected={activeTab === 'share'}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 activeTab === 'share' 
                   ? 'bg-blue-100 text-blue-700' 
@@ -252,6 +264,7 @@ const ExportImportModal = ({
                 <button
                   onClick={handleCopyToClipboard}
                   className="px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  aria-label="Kopier til utklippstavle"
                 >
                   {copied ? (
                     <Check className="w-5 h-5 text-green-600" />
@@ -329,6 +342,7 @@ const ExportImportModal = ({
                       setTimeout(() => setCopied(false), 2000)
                     }}
                     className="px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    aria-label="Kopier lenke"
                   >
                     {copied ? <Check className="w-5 h-5 text-green-600" /> : <Copy className="w-5 h-5" />}
                   </button>
