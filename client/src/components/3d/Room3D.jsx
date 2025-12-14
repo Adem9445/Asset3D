@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
-import { Box, Text } from '@react-three/drei'
+import { Text } from '@react-three/drei'
 import * as THREE from 'three'
+import Asset3D from './Asset3D'
 
 const Room3D = ({ room, isSelected, onClick }) => {
   const meshRef = useRef()
@@ -105,95 +106,6 @@ const Room3D = ({ room, isSelected, onClick }) => {
       ))}
     </group>
   )
-}
-
-const Asset3D = ({ asset }) => {
-  const getAssetGeometry = () => {
-    switch (asset.type) {
-      case 'sofa':
-        return (
-          <group position={asset.position} rotation={asset.rotation} scale={asset.scale}>
-            <Box args={[2, 0.4, 0.8]} position={[0, 0.2, 0]}>
-              <meshStandardMaterial color="#3b82f6" />
-            </Box>
-            <Box args={[2, 0.5, 0.15]} position={[0, 0.65, -0.325]}>
-              <meshStandardMaterial color="#3b82f6" />
-            </Box>
-            <Box args={[0.15, 0.3, 0.8]} position={[-0.925, 0.55, 0]}>
-              <meshStandardMaterial color="#3b82f6" />
-            </Box>
-            <Box args={[0.15, 0.3, 0.8]} position={[0.925, 0.55, 0]}>
-              <meshStandardMaterial color="#3b82f6" />
-            </Box>
-          </group>
-        )
-      case 'desk':
-        return (
-          <group position={asset.position} rotation={asset.rotation} scale={asset.scale}>
-            <Box args={[1.6, 0.05, 0.8]} position={[0, 0.75, 0]}>
-              <meshStandardMaterial color="#8b7355" />
-            </Box>
-            <Box args={[0.05, 0.75, 0.05]} position={[-0.75, 0.375, -0.35]}>
-              <meshStandardMaterial color="#6b5945" />
-            </Box>
-            <Box args={[0.05, 0.75, 0.05]} position={[0.75, 0.375, -0.35]}>
-              <meshStandardMaterial color="#6b5945" />
-            </Box>
-            <Box args={[0.05, 0.75, 0.05]} position={[-0.75, 0.375, 0.35]}>
-              <meshStandardMaterial color="#6b5945" />
-            </Box>
-            <Box args={[0.05, 0.75, 0.05]} position={[0.75, 0.375, 0.35]}>
-              <meshStandardMaterial color="#6b5945" />
-            </Box>
-          </group>
-        )
-      case 'chair':
-        return (
-          <group position={asset.position} rotation={asset.rotation} scale={asset.scale}>
-            <Box args={[0.5, 0.05, 0.5]} position={[0, 0.45, 0]}>
-              <meshStandardMaterial color="#374151" />
-            </Box>
-            <Box args={[0.05, 0.45, 0.05]} position={[-0.2, 0.225, -0.2]}>
-              <meshStandardMaterial color="#1f2937" />
-            </Box>
-            <Box args={[0.05, 0.45, 0.05]} position={[0.2, 0.225, -0.2]}>
-              <meshStandardMaterial color="#1f2937" />
-            </Box>
-            <Box args={[0.05, 0.45, 0.05]} position={[-0.2, 0.225, 0.2]}>
-              <meshStandardMaterial color="#1f2937" />
-            </Box>
-            <Box args={[0.05, 0.45, 0.05]} position={[0.2, 0.225, 0.2]}>
-              <meshStandardMaterial color="#1f2937" />
-            </Box>
-            <Box args={[0.5, 0.6, 0.05]} position={[0, 0.75, -0.225]}>
-              <meshStandardMaterial color="#374151" />
-            </Box>
-          </group>
-        )
-      case 'computer':
-        return (
-          <group position={asset.position} rotation={asset.rotation} scale={asset.scale}>
-            <Box args={[0.5, 0.35, 0.02]} position={[0, 0.175, 0]}>
-              <meshStandardMaterial color="#1f2937" />
-            </Box>
-            <Box args={[0.1, 0.15, 0.1]} position={[0, -0.075, 0]}>
-              <meshStandardMaterial color="#374151" />
-            </Box>
-            <Box args={[0.3, 0.02, 0.2]} position={[0, -0.16, 0]}>
-              <meshStandardMaterial color="#374151" />
-            </Box>
-          </group>
-        )
-      default:
-        return (
-          <Box args={[0.5, 0.5, 0.5]} position={asset.position}>
-            <meshStandardMaterial color="#9ca3af" />
-          </Box>
-        )
-    }
-  }
-  
-  return getAssetGeometry()
 }
 
 export default Room3D

@@ -1,7 +1,7 @@
-import { useRef } from 'react'
+import { useRef, memo } from 'react'
 import { Box } from '@react-three/drei'
 
-const Asset3D = ({ asset }) => {
+const Asset3D = memo(({ asset }) => {
   const meshRef = useRef()
 
   const getAssetComponent = () => {
@@ -125,6 +125,6 @@ const Asset3D = ({ asset }) => {
   }
 
   return getAssetComponent()
-}
+})
 
 export default Asset3D
