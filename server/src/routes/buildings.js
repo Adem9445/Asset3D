@@ -175,11 +175,66 @@ router.get('/', authenticateToken, async (req, res) => {
       [req.user.tenantId]
     )
 
-    const buildings = await Promise.all(
-      result.rows.map(building => buildDatabaseBuilding(building, req.user.tenantId))
-    )
+    const buildings = result.rows
+    if (buildings.length === 0) {
+      return res.json([])
+    }
 
-    res.json(buildings)
+    // Optimization: Fetch all rooms for all buildings in one query
+    const buildingIds = buildings.map(b => b.id)
+    const roomsResult = await pool.query(
+      `SELECT * FROM rooms WHERE building_id = ANY($1) ORDER BY floor_number, name`,
+      [buildingIds]
+    )
+    const allRooms = roomsResult.rows
+
+    // Optimization: Fetch all assets for all rooms in one query
+    const roomIds = allRooms.map(r => r.id)
+    let allAssets = []
+    if (roomIds.length > 0) {
+      const assetsResult = await pool.query(
+        `SELECT a.*, c.name as category_name
+         FROM assets a
+         LEFT JOIN asset_categories c ON a.category_id = c.id
+         WHERE a.room_id = ANY($1) AND a.tenant_id = $2
+         ORDER BY a.created_at DESC`,
+        [roomIds, req.user.tenantId]
+      )
+      allAssets = assetsResult.rows
+    }
+
+    // Map assets to rooms
+    const assetsByRoom = new Map()
+    allAssets.forEach(asset => {
+      if (!assetsByRoom.has(asset.room_id)) {
+        assetsByRoom.set(asset.room_id, [])
+      }
+      assetsByRoom.get(asset.room_id).push(asset)
+    })
+
+    const roomsByBuilding = new Map()
+    allRooms.forEach(room => {
+      const roomWithAssets = {
+        ...room,
+        assets: assetsByRoom.get(room.id) || []
+      }
+      if (!roomsByBuilding.has(room.building_id)) {
+        roomsByBuilding.set(room.building_id, [])
+      }
+      roomsByBuilding.get(room.building_id).push(roomWithAssets)
+    })
+
+    // Construct final building objects
+    const detailedBuildings = buildings.map(building => {
+      const rooms = roomsByBuilding.get(building.id) || []
+      return {
+        ...building,
+        rooms,
+        floors: createFloorStructure(rooms, building.data?.floors)
+      }
+    })
+
+    res.json(detailedBuildings)
   } catch (error) {
     console.error('Error fetching buildings:', error)
     res.status(500).json({ message: 'Feil ved henting av bygninger' })
