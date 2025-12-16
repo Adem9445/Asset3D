@@ -9,10 +9,10 @@ const GroupDashboard = () => {
   const { user, token } = useAuthStore()
   const { fetchAssets } = useAssetStore()
   const navigate = useNavigate()
-  
+
   // Use the new group store
-  const { 
-    groups, 
+  const {
+    groups,
     selectedGroup,
     companies,
     stats: groupStats,
@@ -21,33 +21,36 @@ const GroupDashboard = () => {
     fetchGroup,
     setSelectedGroup
   } = useGroupStore()
-  
+
   const [recentActivity, setRecentActivity] = useState([])
   const [activeTab, setActiveTab] = useState('overview')
-  
+
   useEffect(() => {
     fetchGroupData()
-  }, [])
-  
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run once on mount
+
   useEffect(() => {
     // Auto-select first group if none selected
     if (groups.length > 0 && !selectedGroup) {
       setSelectedGroup(groups[0])
     }
-  }, [groups])
-  
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups.length]) // Only trigger when groups count changes
+
   useEffect(() => {
-    // Fetch group details when selected
-    if (selectedGroup) {
+    // Fetch group details when selected (only if we don't have companies yet)
+    if (selectedGroup && selectedGroup.id && companies.length === 0) {
       fetchGroup(selectedGroup.id, token)
     }
-  }, [selectedGroup])
-  
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedGroup?.id]) // Only trigger when selectedGroup ID changes
+
   const fetchGroupData = async () => {
     try {
       await fetchGroups(token)
       await fetchAssets()
-      
+
       // Mock recent activity
       setRecentActivity([
         { id: 1, action: 'Nytt selskap registrert', group: 'Nordic Tech Group', time: '2 timer siden', type: 'company' },
@@ -59,9 +62,9 @@ const GroupDashboard = () => {
       console.error('Error fetching group data:', error)
     }
   }
-  
+
   const getActivityIcon = (type) => {
-    switch(type) {
+    switch (type) {
       case 'company':
         return <Building2 className="w-4 h-4 text-blue-600" />
       case 'asset':
@@ -111,7 +114,7 @@ const GroupDashboard = () => {
       </div>
     )
   }
-  
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header with Group Selector */}
@@ -122,7 +125,7 @@ const GroupDashboard = () => {
             {selectedGroup ? `Administrerer ${selectedGroup.name}` : 'Velg en gruppe å administrere'}
           </p>
         </div>
-        
+
         {/* Group Selector */}
         <div className="flex items-center gap-4">
           <select
@@ -140,7 +143,7 @@ const GroupDashboard = () => {
               </option>
             ))}
           </select>
-          
+
           <button
             onClick={() => navigate('/admin/groups')}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -150,7 +153,7 @@ const GroupDashboard = () => {
           </button>
         </div>
       </div>
-      
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -161,7 +164,7 @@ const GroupDashboard = () => {
           <p className="text-sm text-gray-600">Totalt</p>
           <p className="text-3xl font-bold text-gray-900 mt-1">{groups.length}</p>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <Building2 className="w-10 h-10 text-blue-500" />
@@ -170,7 +173,7 @@ const GroupDashboard = () => {
           <p className="text-sm text-gray-600">Selskaper</p>
           <p className="text-3xl font-bold text-gray-900 mt-1">{groupStats.totalCompanies}</p>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <Users className="w-10 h-10 text-green-500" />
@@ -179,7 +182,7 @@ const GroupDashboard = () => {
           <p className="text-sm text-gray-600">Totalt Ansatte</p>
           <p className="text-3xl font-bold text-gray-900 mt-1">{groupStats.totalEmployees}</p>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <Package className="w-10 h-10 text-purple-500" />
@@ -189,7 +192,7 @@ const GroupDashboard = () => {
           <p className="text-3xl font-bold text-gray-900 mt-1">{groupStats.totalAssets}</p>
           <p className="text-xs text-gray-600 mt-2">Alle lokasjoner</p>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <TrendingUp className="w-10 h-10 text-orange-500" />
@@ -202,14 +205,14 @@ const GroupDashboard = () => {
           <p className="text-xs text-gray-600 mt-2">Samlet asset-verdi</p>
         </div>
       </div>
-      
+
       {/* Companies and Activity Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Companies List */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-lg font-semibold">{selectedGroup ? `Selskaper i ${selectedGroup.name}` : 'Selskaper'}</h2>
-            <button 
+            <button
               onClick={() => navigate('/group/companies/new')}
               className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
@@ -217,7 +220,7 @@ const GroupDashboard = () => {
               Nytt selskap
             </button>
           </div>
-          
+
           <div className="space-y-4">
             {companies.length === 0 ? (
               <div className="border-2 border-dashed border-gray-200 rounded-xl p-10 text-center bg-gray-50">

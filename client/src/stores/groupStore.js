@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_URL = '/api'
 
 /**
  * Group Store - Manages group and company relationships
@@ -20,9 +20,9 @@ const useGroupStore = create((set, get) => ({
     totalAssets: 0,
     totalValue: 0
   },
-  
+
   // Actions
-  
+
   /**
    * Fetch all groups
    */
@@ -32,16 +32,16 @@ const useGroupStore = create((set, get) => ({
       const response = await axios.get(`${API_URL}/groups`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      
-      const groups = response.data
-      
+
+      const groups = Array.isArray(response.data.groups) ? response.data.groups : (Array.isArray(response.data) ? response.data : [])
+
       // Calculate stats
       const totalCompanies = groups.reduce((sum, g) => sum + (g.companies_count || 0), 0)
       const totalEmployees = groups.reduce((sum, g) => sum + (g.total_employees || 0), 0)
       const totalAssets = groups.reduce((sum, g) => sum + (g.total_assets || 0), 0)
       const totalValue = groups.reduce((sum, g) => sum + (g.total_value || 0), 0)
-      
-      set({ 
+
+      set({
         groups,
         stats: {
           totalGroups: groups.length,
@@ -52,18 +52,18 @@ const useGroupStore = create((set, get) => ({
         },
         loading: false
       })
-      
+
       return groups
     } catch (error) {
       console.error('Fetch groups error:', error)
-      set({ 
+      set({
         error: error.response?.data?.message || 'Kunne ikke hente grupper',
-        loading: false 
+        loading: false
       })
       throw error
     }
   },
-  
+
   /**
    * Fetch single group with details
    */
@@ -73,24 +73,24 @@ const useGroupStore = create((set, get) => ({
       const response = await axios.get(`${API_URL}/groups/${groupId}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      
-      set({ 
+
+      set({
         selectedGroup: response.data,
         companies: response.data.companies || [],
-        loading: false 
+        loading: false
       })
-      
+
       return response.data
     } catch (error) {
       console.error('Fetch group error:', error)
-      set({ 
+      set({
         error: error.response?.data?.message || 'Kunne ikke hente gruppe',
-        loading: false 
+        loading: false
       })
       throw error
     }
   },
-  
+
   /**
    * Create new group
    */
@@ -102,24 +102,24 @@ const useGroupStore = create((set, get) => ({
         groupData,
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      
+
       const newGroup = response.data
-      set(state => ({ 
+      set(state => ({
         groups: [...state.groups, newGroup],
-        loading: false 
+        loading: false
       }))
-      
+
       return newGroup
     } catch (error) {
       console.error('Create group error:', error)
-      set({ 
+      set({
         error: error.response?.data?.message || 'Kunne ikke opprette gruppe',
-        loading: false 
+        loading: false
       })
       throw error
     }
   },
-  
+
   /**
    * Update group
    */
@@ -131,25 +131,25 @@ const useGroupStore = create((set, get) => ({
         updates,
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      
+
       const updatedGroup = response.data
       set(state => ({
         groups: state.groups.map(g => g.id === groupId ? updatedGroup : g),
         selectedGroup: state.selectedGroup?.id === groupId ? updatedGroup : state.selectedGroup,
         loading: false
       }))
-      
+
       return updatedGroup
     } catch (error) {
       console.error('Update group error:', error)
-      set({ 
+      set({
         error: error.response?.data?.message || 'Kunne ikke oppdatere gruppe',
-        loading: false 
+        loading: false
       })
       throw error
     }
   },
-  
+
   /**
    * Delete group
    */
@@ -159,7 +159,7 @@ const useGroupStore = create((set, get) => ({
       await axios.delete(`${API_URL}/groups/${groupId}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      
+
       set(state => ({
         groups: state.groups.filter(g => g.id !== groupId),
         selectedGroup: state.selectedGroup?.id === groupId ? null : state.selectedGroup,
@@ -167,14 +167,14 @@ const useGroupStore = create((set, get) => ({
       }))
     } catch (error) {
       console.error('Delete group error:', error)
-      set({ 
+      set({
         error: error.response?.data?.message || 'Kunne ikke slette gruppe',
-        loading: false 
+        loading: false
       })
       throw error
     }
   },
-  
+
   /**
    * Add company to group
    */
@@ -186,20 +186,20 @@ const useGroupStore = create((set, get) => ({
         { companyId },
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      
+
       // Refresh group data
       await get().fetchGroup(groupId, token)
       set({ loading: false })
     } catch (error) {
       console.error('Add company error:', error)
-      set({ 
+      set({
         error: error.response?.data?.message || 'Kunne ikke legge til selskap',
-        loading: false 
+        loading: false
       })
       throw error
     }
   },
-  
+
   /**
    * Remove company from group
    */
@@ -210,21 +210,21 @@ const useGroupStore = create((set, get) => ({
         `${API_URL}/groups/${groupId}/companies/${companyId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      
+
       set(state => ({
         companies: state.companies.filter(c => c.id !== companyId),
         loading: false
       }))
     } catch (error) {
       console.error('Remove company error:', error)
-      set({ 
+      set({
         error: error.response?.data?.message || 'Kunne ikke fjerne selskap',
-        loading: false 
+        loading: false
       })
       throw error
     }
   },
-  
+
   /**
    * Send invitation to company
    */
@@ -236,19 +236,19 @@ const useGroupStore = create((set, get) => ({
         inviteData,
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      
+
       set({ loading: false })
       return response.data
     } catch (error) {
       console.error('Send invitation error:', error)
-      set({ 
+      set({
         error: error.response?.data?.message || 'Kunne ikke sende invitasjon',
-        loading: false 
+        loading: false
       })
       throw error
     }
   },
-  
+
   /**
    * Get group statistics
    */
@@ -258,28 +258,28 @@ const useGroupStore = create((set, get) => ({
         `${API_URL}/groups/${groupId}/stats`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      
+
       return response.data
     } catch (error) {
       console.error('Fetch stats error:', error)
       throw error
     }
   },
-  
+
   /**
    * Set selected group
    */
   setSelectedGroup: (group) => {
     set({ selectedGroup: group })
   },
-  
+
   /**
    * Clear selected group
    */
   clearSelectedGroup: () => {
     set({ selectedGroup: null, companies: [] })
   },
-  
+
   /**
    * Reset store
    */

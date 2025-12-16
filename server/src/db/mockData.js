@@ -9,76 +9,77 @@ const mockDB = {
   rooms: [],
   assets: [],
   buildings: [],
-  categories: []
+  categories: [],
+  suppliers: []
 }
 
 export const initMockData = async () => {
   console.log('⚠️  Kjører i DEMO-MODUS uten PostgreSQL database')
   console.log('📝 Bruker in-memory data - endringer vil ikke bli lagret ved restart')
-  
+
   const demoPassword = await bcrypt.hash('demo123', 10)
-  
+
   // Create tenants
   mockDB.tenants = [
     { id: '1', name: 'Asset3D Admin', type: 'admin', parent_tenant_id: null },
     { id: '2', name: 'Demo Group', type: 'group', parent_tenant_id: null },
     { id: '3', name: 'Demo Company', type: 'company', parent_tenant_id: '2' }
   ]
-  
+
   // Create users
   mockDB.users = [
-    { 
-      id: '1', 
-      email: 'admin@asset3d.no', 
-      password_hash: demoPassword, 
-      name: 'Admin User', 
-      role: 'admin', 
+    {
+      id: '1',
+      email: 'admin@asset3d.no',
+      password_hash: demoPassword,
+      name: 'Admin User',
+      role: 'admin',
       tenant_id: '1',
       is_active: true,
       permissions: []
     },
-    { 
-      id: '2', 
-      email: 'group@asset3d.no', 
-      password_hash: demoPassword, 
-      name: 'Group Admin', 
-      role: 'group', 
+    {
+      id: '2',
+      email: 'group@asset3d.no',
+      password_hash: demoPassword,
+      name: 'Group Admin',
+      role: 'group',
       tenant_id: '2',
       is_active: true,
       permissions: []
     },
-    { 
-      id: '3', 
-      email: 'company@asset3d.no', 
-      password_hash: demoPassword, 
-      name: 'Company Admin', 
-      role: 'company', 
+    {
+      id: '3',
+      email: 'company@asset3d.no',
+      password_hash: demoPassword,
+      name: 'Company Admin',
+      role: 'company',
       tenant_id: '3',
       is_active: true,
       permissions: []
     },
-    { 
-      id: '4', 
-      email: 'user@asset3d.no', 
-      password_hash: demoPassword, 
-      name: 'Normal User', 
-      role: 'user', 
+    {
+      id: '4',
+      email: 'user@asset3d.no',
+      password_hash: demoPassword,
+      name: 'Normal User',
+      role: 'user',
       tenant_id: '3',
       is_active: true,
       permissions: []
     },
-    { 
-      id: '5', 
-      email: 'supplier@asset3d.no', 
-      password_hash: demoPassword, 
-      name: 'Supplier User', 
-      role: 'supplier', 
+    {
+      id: '5',
+      email: 'supplier@asset3d.no',
+      password_hash: demoPassword,
+      name: 'Supplier User',
+      role: 'supplier',
       tenant_id: '3',
       is_active: true,
       permissions: []
     }
   ]
-  
+
   // Create categories
   mockDB.categories = [
     { id: '1', name: 'Møbler', icon: 'sofa' },
@@ -90,34 +91,107 @@ export const initMockData = async () => {
 
   const now = new Date().toISOString()
 
-  // Demo building structure
-  mockDB.buildings = [
+  // Demo location structure
+  const locationId = 'loc1'
+  mockDB.locations = [
     {
-      id: 'b1',
+      id: locationId,
       tenant_id: '3',
       name: 'Hovedkontor',
       address: 'Karl Johans gate 1, Oslo',
-      data: {
-        floors: [
-          { id: 'f1', name: '1. etasje' },
-          { id: 'f2', name: '2. etasje' }
-        ]
-      },
+      type: 'office',
+      floors: 3,
+      rooms: 7,
+      employees: 45,
+      assets: 7,
+      status: 'active',
       created_at: now,
-      updated_at: now,
-      created_by: '3'
+      updated_at: now
     }
+  ]
+
+  // Demo floors
+  mockDB.floors = [
+    { id: 'f1', location_id: locationId, name: '1. etasje', floor_number: 1, created_at: now, updated_at: now },
+    { id: 'f2', location_id: locationId, name: '2. etasje', floor_number: 2, created_at: now, updated_at: now },
+    { id: 'f3', location_id: locationId, name: '3. etasje', floor_number: 3, created_at: now, updated_at: now }
   ]
 
   // Demo rooms
   mockDB.rooms = [
-    { id: 'r1', building_id: 'b1', tenant_id: '3', name: 'Kontor 101', type: 'office', floor_number: 1 },
-    { id: 'r2', building_id: 'b1', tenant_id: '3', name: 'Kontor 102', type: 'office', floor_number: 1 },
-    { id: 'r3', building_id: 'b1', tenant_id: '3', name: 'Møterom 201', type: 'meeting', floor_number: 2 },
-    { id: 'r4', building_id: 'b1', tenant_id: '3', name: 'Møterom 202', type: 'meeting', floor_number: 2 },
-    { id: 'r5', building_id: 'b1', tenant_id: '3', name: 'Kjøkken', type: 'kitchen', floor_number: 1 }
+    {
+      id: 'r1',
+      floor_id: 'f1',
+      name: 'Kontor 101',
+      room_type: 'office',
+      dimensions: { width: 5, depth: 4, height: 2.5 },
+      position: { x: -2.5, y: 0, z: -2 },
+      created_at: now,
+      updated_at: now
+    },
+    {
+      id: 'r2',
+      floor_id: 'f1',
+      name: 'Kontor 102',
+      room_type: 'office',
+      dimensions: { width: 5, depth: 4, height: 2.5 },
+      position: { x: 2.5, y: 0, z: -2 },
+      created_at: now,
+      updated_at: now
+    },
+    {
+      id: 'r3',
+      floor_id: 'f2',
+      name: 'Møterom 201',
+      room_type: 'meeting',
+      dimensions: { width: 8, depth: 6, height: 2.5 },
+      position: { x: 0, y: 0, z: 0 },
+      created_at: now,
+      updated_at: now
+    },
+    {
+      id: 'r4',
+      floor_id: 'f2',
+      name: 'Møterom 202',
+      room_type: 'meeting',
+      dimensions: { width: 6, depth: 4, height: 2.5 },
+      position: { x: 5, y: 0, z: 0 },
+      created_at: now,
+      updated_at: now
+    },
+    {
+      id: 'r5',
+      floor_id: 'f1',
+      name: 'Kjøkken',
+      room_type: 'kitchen',
+      dimensions: { width: 4, depth: 4, height: 2.5 },
+      position: { x: 0, y: 0, z: 5 },
+      created_at: now,
+      updated_at: now
+    },
+    {
+      id: 'r6',
+      floor_id: 'f3',
+      name: 'Kontor 301',
+      room_type: 'office',
+      dimensions: { width: 5, depth: 4, height: 2.5 },
+      position: { x: -2.5, y: 0, z: 0 },
+      created_at: now,
+      updated_at: now
+    },
+    {
+      id: 'r7',
+      floor_id: 'f3',
+      name: 'Lounge',
+      room_type: 'lounge',
+      dimensions: { width: 10, depth: 8, height: 3 },
+      position: { x: 0, y: 0, z: 0 },
+      created_at: now,
+      updated_at: now
+    }
   ]
 
+  // Demo assets
   mockDB.assets = [
     {
       id: 'a1',
@@ -130,7 +204,11 @@ export const initMockData = async () => {
       purchase_price: 4500,
       status: 'active',
       created_at: now,
-      metadata: { manufacturer: 'HÅG', warrantyYears: 5 }
+      updated_at: now,
+      metadata: { manufacturer: 'HÅG', warrantyYears: 5 },
+      position: [0, 0, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1]
     },
     {
       id: 'a2',
@@ -143,7 +221,11 @@ export const initMockData = async () => {
       purchase_price: 12000,
       status: 'active',
       created_at: now,
-      metadata: { manufacturer: 'Linak', warrantyYears: 3 }
+      updated_at: now,
+      metadata: { manufacturer: 'Linak', warrantyYears: 3 },
+      position: [0, 0, -1],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1]
     },
     {
       id: 'a3',
@@ -156,7 +238,11 @@ export const initMockData = async () => {
       purchase_price: 28000,
       status: 'active',
       created_at: now,
-      metadata: { serialNumber: 'MBP16-2024-001' }
+      updated_at: now,
+      metadata: { serialNumber: 'MBP16-2024-001' },
+      position: [0, 0.8, -1],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1]
     },
     {
       id: 'a4',
@@ -169,7 +255,11 @@ export const initMockData = async () => {
       purchase_price: 8500,
       status: 'active',
       created_at: now,
-      metadata: { maintenanceIntervalDays: 30 }
+      updated_at: now,
+      metadata: { maintenanceIntervalDays: 30 },
+      position: [1, 0.9, 0],
+      rotation: [0, -Math.PI / 2, 0],
+      scale: [1, 1, 1]
     },
     {
       id: 'a5',
@@ -182,7 +272,101 @@ export const initMockData = async () => {
       purchase_price: 12500,
       status: 'active',
       created_at: now,
-      metadata: { lampHours: 120 }
+      updated_at: now,
+      metadata: { lampHours: 120 },
+      position: [0, 2.4, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1]
+    },
+    {
+      id: 'a6',
+      tenant_id: '3',
+      name: 'Sofa 3-seter',
+      description: 'Komfortabel sofa for lounge',
+      category_id: '1',
+      room_id: 'r7',
+      asset_type: 'sofa',
+      purchase_price: 15000,
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+      metadata: { manufacturer: 'Ekornes', fabric: 'Wool' },
+      position: [0, 0, -2],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1]
+    },
+    {
+      id: 'a7',
+      tenant_id: '3',
+      name: 'Stor Grønnplante',
+      description: 'Monstera Deliciosa',
+      category_id: '5',
+      room_id: 'r7',
+      asset_type: 'plant',
+      purchase_price: 1200,
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+      metadata: { wateringIntervalDays: 7 },
+      position: [3, 0, 3],
+      rotation: [0, Math.random() * Math.PI, 0],
+      scale: [1.5, 1.5, 1.5]
+    }
+  ]
+
+  // Demo suppliers
+  mockDB.suppliers = [
+    {
+      id: '1',
+      tenant_id: '3',
+      name: 'Kontormøbler AS',
+      category: 'Møbler',
+      contracts: 3,
+      email: 'post@kontormobler.no',
+      phone: '+47 22 33 44 55',
+      address: 'Møbelveien 1, 0123 Oslo',
+      status: 'Active',
+      created_at: now,
+      updated_at: now
+    },
+    {
+      id: '2',
+      tenant_id: '3',
+      name: 'IT Utstyr Norge',
+      category: 'IT',
+      contracts: 5,
+      email: 'support@itutstyr.no',
+      phone: '+47 99 88 77 66',
+      address: 'Teknologiparken 5, 7000 Trondheim',
+      status: 'Active',
+      created_at: now,
+      updated_at: now
+    },
+    {
+      id: '3',
+      tenant_id: '3',
+      name: 'Renholdseksperten',
+      category: 'Facility',
+      contracts: 1,
+      email: 'kontakt@renhold.no',
+      phone: '+47 11 22 33 44',
+      address: 'Vaskebakken 2, 5000 Bergen',
+      status: 'Inactive',
+      created_at: now,
+      updated_at: now
+    },
+    {
+      id: '4',
+      tenant_id: '2', // Different tenant (Group)
+      name: 'Group Supplier',
+      category: 'Consulting',
+      contracts: 2,
+      email: 'consulting@group.no',
+      phone: '+47 55 55 55 55',
+      address: 'Group Road 1',
+      status: 'Active',
+      created_at: now,
+      updated_at: now
     }
   ]
 

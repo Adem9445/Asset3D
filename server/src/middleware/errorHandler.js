@@ -1,6 +1,7 @@
 export const errorHandler = (err, req, res, next) => {
+  console.log('DEBUG: errorHandler called with error:', err.message)
   console.error('Error:', err)
-  
+
   // Postgres unique violation
   if (err.code === '23505') {
     return res.status(409).json({
@@ -8,7 +9,7 @@ export const errorHandler = (err, req, res, next) => {
       message: 'En ressurs med denne verdien eksisterer allerede'
     })
   }
-  
+
   // Postgres foreign key violation
   if (err.code === '23503') {
     return res.status(400).json({
@@ -16,7 +17,7 @@ export const errorHandler = (err, req, res, next) => {
       message: 'Kan ikke utføre operasjonen på grunn av relaterte data'
     })
   }
-  
+
   // Validation errors
   if (err.name === 'ValidationError') {
     return res.status(400).json({
@@ -33,7 +34,7 @@ export const errorHandler = (err, req, res, next) => {
       details: err.errors
     })
   }
-  
+
   // JWT errors
   if (err.name === 'JsonWebTokenError') {
     return res.status(401).json({
@@ -41,18 +42,18 @@ export const errorHandler = (err, req, res, next) => {
       message: 'Ugyldig token'
     })
   }
-  
+
   if (err.name === 'TokenExpiredError') {
     return res.status(401).json({
       error: 'Token utløpt',
       message: 'Din sesjon har utløpt. Vennligst logg inn på nytt.'
     })
   }
-  
+
   // Default error
   const statusCode = err.statusCode || 500
   const message = err.message || 'En serverfeil oppstod'
-  
+
   res.status(statusCode).json({
     error: 'Serverfeil',
     message: message,

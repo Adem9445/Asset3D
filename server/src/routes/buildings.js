@@ -1,6 +1,6 @@
 import express from 'express'
 import { authenticateToken } from '../middleware/auth.js'
-import pool from '../db/db.js'
+import pool, { query } from '../db/init.js'
 import mockDB from '../db/mockData.js'
 
 const router = express.Router()
@@ -111,7 +111,7 @@ const buildMockBuilding = (building, tenantId) => {
 }
 
 const buildDatabaseBuilding = async (building, tenantId) => {
-  const roomsResult = await pool.query(
+  const roomsResult = await query(
     `SELECT * FROM rooms WHERE building_id = $1 ORDER BY floor_number, name`,
     [building.id]
   )
@@ -120,7 +120,7 @@ const buildDatabaseBuilding = async (building, tenantId) => {
   let allAssets = []
 
   if (roomIds.length > 0) {
-    const assetResult = await pool.query(
+    const assetResult = await query(
       `SELECT a.*, c.name as category_name
        FROM assets a
        LEFT JOIN asset_categories c ON a.category_id = c.id
@@ -157,39 +157,50 @@ export { buildDatabaseBuilding }
 /**
  * Get all buildings for tenant
  */
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
+    console.log('GET /buildings - Start', { user: req.user })
     if (isMockDb()) {
       const tenantId = String(req.user.tenantId)
       const buildings = mockDB.buildings
-        .filter(building => building.tenant_id === tenantId)
+        .filter(item => item.tenant_id === tenantId)
         .map(building => buildMockBuilding(building, tenantId))
 
       return res.json(buildings)
     }
 
-    const result = await pool.query(
+    console.log('GET /buildings - Querying database for tenant:', req.user.tenantId)
+    const result = await query(
       `SELECT * FROM buildings
        WHERE tenant_id = $1
        ORDER BY created_at DESC`,
       [req.user.tenantId]
     )
+    console.log('GET /buildings - Query result:', result.rowCount)
 
     const buildings = await Promise.all(
-      result.rows.map(building => buildDatabaseBuilding(building, req.user.tenantId))
+      result.rows.map(async (building) => {
+        try {
+          return await buildDatabaseBuilding(building, req.user.tenantId)
+        } catch (err) {
+          console.error('Error building database building:', err)
+          throw err
+        }
+      })
     )
+    console.log('GET /buildings - Buildings built:', buildings.length)
 
     res.json(buildings)
   } catch (error) {
     console.error('Error fetching buildings:', error)
-    res.status(500).json({ message: 'Feil ved henting av bygninger' })
+    res.status(500).json({ message: 'Feil ved henting av bygninger', error: error.message })
   }
 })
 
 /**
  * Get single building by ID
  */
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     if (isMockDb()) {
       const tenantId = String(req.user.tenantId)
@@ -204,7 +215,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
       return res.json(buildMockBuilding(building, tenantId))
     }
 
-    const result = await pool.query(
+    const result = await query(
       `SELECT * FROM buildings
        WHERE id = $1 AND tenant_id = $2`,
       [req.params.id, req.user.tenantId]
@@ -226,7 +237,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 /**
  * Save/Update building with all data
  */
-router.post('/save', authenticateToken, async (req, res) => {
+router.post('/save', async (req, res) => {
   if (isMockDb()) {
     const { id, name, address, floors, rooms } = req.body
     const tenantId = String(req.user.tenantId)
@@ -438,7 +449,7 @@ router.post('/save', authenticateToken, async (req, res) => {
 /**
  * Delete building
  */
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', async (req, res) => {
   if (isMockDb()) {
     const tenantId = String(req.user.tenantId)
     const buildingIndex = mockDB.buildings.findIndex(

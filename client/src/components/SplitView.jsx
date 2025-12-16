@@ -1,4 +1,4 @@
-import { useState, Suspense, lazy } from 'react'
+import { useState, Suspense, lazy, useMemo } from 'react'
 import { Maximize2, Minimize2, RotateCw } from 'lucide-react'
 
 // Lazy load heavy components
@@ -15,6 +15,7 @@ const SplitView = ({
   onAssetSelect,
   onAssetUpdate,
   onAssetDelete,
+  onAssetCreate,
   editMode = 'view',
   showGrid = true
 }) => {
@@ -24,7 +25,7 @@ const SplitView = ({
 
   const handleDividerDrag = (e) => {
     if (!isDragging) return
-    
+
     const container = e.currentTarget.parentElement
     const rect = container.getBoundingClientRect()
     const x = e.clientX - rect.left
@@ -49,20 +50,26 @@ const SplitView = ({
     </div>
   )
 
+  const roomData = useMemo(() => room ? {
+    ...room,
+    width: room.width || 10,
+    height: room.height || 3,
+    depth: room.depth || 8
+  } : null, [room])
+
   return (
-    <div 
+    <div
       className="relative w-full h-full flex"
       onMouseMove={handleDividerDrag}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
       {/* 2D View */}
-      <div 
-        className={`relative border-r border-gray-300 transition-all ${
-          focusedView === '3d' ? 'hidden' : ''
-        }`}
-        style={{ 
-          width: focusedView === '2d' ? '100%' : `${splitRatio}%` 
+      <div
+        className={`relative border-r border-gray-300 transition-all ${focusedView === '3d' ? 'hidden' : ''
+          }`}
+        style={{
+          width: focusedView === '2d' ? '100%' : `${splitRatio}%`
         }}
       >
         {/* 2D View Header */}
@@ -78,12 +85,12 @@ const SplitView = ({
             </button>
           </div>
         </div>
-        
+
         {/* 2D Content */}
         <div className="pt-10 h-full">
           <Suspense fallback={<LoadingView />}>
             <Room2DView
-              room={room}
+              room={roomData}
               assets={assets}
               selectedAsset={selectedAsset}
               onAssetSelect={onAssetSelect}
@@ -99,10 +106,9 @@ const SplitView = ({
       {/* Divider */}
       {!focusedView && (
         <div
-          className={`absolute top-0 bottom-0 w-1 bg-gray-300 hover:bg-blue-500 transition-colors z-30 ${
-            isDragging ? 'bg-blue-500' : ''
-          }`}
-          style={{ 
+          className={`absolute top-0 bottom-0 w-1 bg-gray-300 hover:bg-blue-500 transition-colors z-30 ${isDragging ? 'bg-blue-500' : ''
+            }`}
+          style={{
             left: `${splitRatio}%`,
             cursor: 'col-resize',
             marginLeft: '-2px'
@@ -126,12 +132,11 @@ const SplitView = ({
       )}
 
       {/* 3D View */}
-      <div 
-        className={`relative flex-1 ${
-          focusedView === '2d' ? 'hidden' : ''
-        }`}
-        style={{ 
-          width: focusedView === '3d' ? '100%' : `${100 - splitRatio}%` 
+      <div
+        className={`relative flex-1 ${focusedView === '2d' ? 'hidden' : ''
+          }`}
+        style={{
+          width: focusedView === '3d' ? '100%' : `${100 - splitRatio}%`
         }}
       >
         {/* 3D View Header */}
@@ -147,21 +152,17 @@ const SplitView = ({
             </button>
           </div>
         </div>
-        
+
         {/* 3D Content */}
         <div className="pt-10 h-full">
           <Suspense fallback={<LoadingView />}>
             <RoomEditor3D
-              roomData={room ? {
-                ...room,
-                width: room.width || 10,
-                height: room.height || 3,
-                depth: room.depth || 8
-              } : null}
+              roomData={roomData}
               assets={assets}
-              onAssetSelect={onAssetSelect}
+              onSelectAsset={onAssetSelect}
               onAssetUpdate={onAssetUpdate}
               onAssetDelete={onAssetDelete}
+              onAssetCreate={onAssetCreate}
               selectedAssetId={selectedAsset?.id}
               editMode={editMode}
               showStats={false}
@@ -174,8 +175,8 @@ const SplitView = ({
       <div className="absolute bottom-4 right-4 z-20 bg-white rounded-lg shadow-lg px-3 py-2 flex items-center gap-2">
         <RotateCw size={14} className="text-green-500 animate-pulse" />
         <span className="text-xs text-gray-600">Synkronisert</span>
-      </div>
-    </div>
+      </div >
+    </div >
   )
 }
 

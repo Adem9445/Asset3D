@@ -29,7 +29,7 @@ const Layout = ({ children }) => {
 
   const getMenuItems = () => {
     const baseItems = []
-    
+
     if (user?.role === 'admin') {
       baseItems.push(
         { path: '/admin', label: 'Oversikt', icon: Home },
@@ -38,14 +38,14 @@ const Layout = ({ children }) => {
         { path: '/admin/users', label: 'Brukere', icon: Users },
       )
     }
-    
+
     if (user?.role === 'group' || user?.role === 'admin') {
       baseItems.push(
         { path: '/group', label: 'Gruppeoversikt', icon: Layers },
         { path: '/group/companies', label: 'Mine Selskaper', icon: Building2 },
       )
     }
-    
+
     if (user?.role === 'company' || user?.role === 'group' || user?.role === 'admin') {
       baseItems.push(
         { path: '/company', label: 'Selskapsoversikt', icon: Briefcase },
@@ -55,14 +55,14 @@ const Layout = ({ children }) => {
         { path: '/company/suppliers', label: 'Leverandører', icon: Truck },
       )
     }
-    
+
     if (user?.role === 'supplier') {
       baseItems.push(
         { path: '/supplier', label: 'Leverandøroversikt', icon: Truck },
         { path: '/supplier/products', label: 'Mine Produkter', icon: Package },
       )
     }
-    
+
     if (user?.role === 'user') {
       baseItems.push(
         { path: '/user', label: 'Min Oversikt', icon: Home },
@@ -70,7 +70,7 @@ const Layout = ({ children }) => {
         { path: '/company/assets', label: 'Eiendeler', icon: Package },
       )
     }
-    
+
     return baseItems
   }
 
@@ -93,12 +93,31 @@ const Layout = ({ children }) => {
               </button>
               <h1 className="ml-4 text-xl font-bold text-gray-900">ASSET3D</h1>
             </div>
-            
+
+
             <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-600">
-                <span className="font-medium">{user?.name}</span>
-                <span className="mx-2">•</span>
-                <span>{user?.companyName}</span>
+              <div className="text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-900">{user?.name}</span>
+                  {user?.role && (
+                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                        user.role === 'group' ? 'bg-blue-100 text-blue-700' :
+                          user.role === 'company' ? 'bg-green-100 text-green-700' :
+                            'bg-gray-100 text-gray-700'
+                      }`}>
+                      {user.role === 'admin' ? 'Admin' :
+                        user.role === 'group' ? 'Gruppe' :
+                          user.role === 'company' ? 'Selskap' :
+                            user.role === 'supplier' ? 'Leverandør' :
+                              'Bruker'}
+                    </span>
+                  )}
+                </div>
+                {user?.companyName && (
+                  <div className="text-xs text-gray-600 mt-0.5">
+                    {user.companyName}
+                  </div>
+                )}
               </div>
               <button
                 onClick={handleLogout}
@@ -125,7 +144,7 @@ const Layout = ({ children }) => {
             {menuItems.map((item) => {
               const Icon = item.icon
               const isActive = location.pathname === item.path
-              
+
               return (
                 <li key={item.path}>
                   <Link
@@ -134,8 +153,8 @@ const Layout = ({ children }) => {
                     className={`
                       flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium
                       transition-colors duration-150
-                      ${isActive 
-                        ? 'bg-primary-50 text-primary-700' 
+                      ${isActive
+                        ? 'bg-primary-50 text-primary-700'
                         : 'text-gray-700 hover:bg-gray-50'
                       }
                     `}
@@ -147,7 +166,7 @@ const Layout = ({ children }) => {
               )
             })}
           </ul>
-          
+
           <div className="mt-8 pt-8 border-t border-gray-200">
             <Link
               to="/settings"
@@ -172,7 +191,7 @@ const Layout = ({ children }) => {
 
       {/* Overlay for mobil */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-30 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />

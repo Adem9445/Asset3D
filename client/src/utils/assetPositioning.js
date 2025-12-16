@@ -6,22 +6,22 @@
  * Check if two bounding boxes overlap
  */
 export const checkCollision = (box1, box2, padding = 0.2) => {
-  const halfSize1 = { 
-    x: (box1.width || 1) / 2 + padding, 
-    z: (box1.depth || 1) / 2 + padding 
+  const halfSize1 = {
+    x: (box1.width || 1) / 2 + padding,
+    z: (box1.depth || 1) / 2 + padding
   }
-  const halfSize2 = { 
-    x: (box2.width || 1) / 2 + padding, 
-    z: (box2.depth || 1) / 2 + padding 
+  const halfSize2 = {
+    x: (box2.width || 1) / 2 + padding,
+    z: (box2.depth || 1) / 2 + padding
   }
-  
+
   const distance = {
     x: Math.abs(box1.position[0] - box2.position[0]),
     z: Math.abs(box1.position[2] - box2.position[2])
   }
-  
-  return distance.x < (halfSize1.x + halfSize2.x) && 
-         distance.z < (halfSize1.z + halfSize2.z)
+
+  return distance.x < (halfSize1.x + halfSize2.x) &&
+    distance.z < (halfSize1.z + halfSize2.z)
 }
 
 /**
@@ -30,31 +30,39 @@ export const checkCollision = (box1, box2, padding = 0.2) => {
 export const getAssetDimensions = (assetType) => {
   const dimensions = {
     // Furniture
-    desk: { width: 1.5, depth: 0.8, height: 0.75 },
+    desk: { width: 1.8, depth: 0.9, height: 0.75 },
     chair: { width: 0.6, depth: 0.6, height: 0.8 },
-    sofa: { width: 2.0, depth: 0.8, height: 0.8 },
-    bookshelf: { width: 1.0, depth: 0.4, height: 2.0 },
-    meetingTable: { width: 2.0, depth: 1.2, height: 0.75 },
-    
+    sofa: { width: 2.2, depth: 0.9, height: 0.8 },
+    bookshelf: { width: 1.25, depth: 0.35, height: 1.8 },
+    meetingTable: { width: 2.4, depth: 1.2, height: 0.75 },
+
     // Office
-    computer: { width: 0.4, depth: 0.3, height: 0.3 },
+    computer: { width: 0.6, depth: 0.3, height: 0.4 },
     printer: { width: 0.5, depth: 0.4, height: 0.3 },
-    phone: { width: 0.2, depth: 0.2, height: 0.1 },
+    phone: { width: 0.2, depth: 0.15, height: 0.1 },
     whiteboard: { width: 1.5, depth: 0.1, height: 1.0 },
     filingCabinet: { width: 0.5, depth: 0.6, height: 1.2 },
     trashBin: { width: 0.3, depth: 0.3, height: 0.4 },
-    
+
     // Kitchen
-    coffeeMachine: { width: 0.3, depth: 0.3, height: 0.4 },
-    microwave: { width: 0.5, depth: 0.4, height: 0.3 },
-    refrigerator: { width: 0.7, depth: 0.7, height: 1.8 },
-    waterCooler: { width: 0.4, depth: 0.4, height: 1.2 },
+    coffeeMachine: { width: 0.25, depth: 0.2, height: 0.35 },
+    microwave: { width: 0.5, depth: 0.35, height: 0.3 },
+    refrigerator: { width: 0.7, depth: 0.65, height: 1.8 },
+    waterCooler: { width: 0.35, depth: 0.35, height: 1.2 },
     plant: { width: 0.3, depth: 0.3, height: 0.6 },
-    
+
+    // Appliances
+    dishwasher: { width: 0.6, depth: 0.6, height: 0.85 },
+    washingMachine: { width: 0.6, depth: 0.6, height: 0.85 },
+    dryer: { width: 0.6, depth: 0.6, height: 0.85 },
+    freezer: { width: 0.7, depth: 0.65, height: 1.8 },
+    stove: { width: 0.6, depth: 0.6, height: 0.85 },
+    ventilator: { width: 0.9, depth: 0.5, height: 0.15 },
+
     // Default
     default: { width: 0.8, depth: 0.8, height: 0.8 }
   }
-  
+
   return dimensions[assetType] || dimensions.default
 }
 
@@ -62,21 +70,21 @@ export const getAssetDimensions = (assetType) => {
  * Find a non-colliding position for a new asset
  */
 export const findNonCollidingPosition = (
-  existingAssets, 
+  existingAssets,
   newAssetType,
   roomBounds = { width: 10, depth: 10 },
   maxAttempts = 50
 ) => {
   const newAssetDims = getAssetDimensions(newAssetType)
-  
+
   // Try grid positions first
   const gridSize = 1.5
   const halfWidth = roomBounds.width / 2
   const halfDepth = roomBounds.depth / 2
-  
+
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     let position
-    
+
     if (attempt < 20) {
       // Try regular grid positions
       const gridX = (attempt % 5 - 2) * gridSize
@@ -90,13 +98,13 @@ export const findNonCollidingPosition = (
         (Math.random() - 0.5) * (roomBounds.depth - newAssetDims.depth)
       ]
     }
-    
+
     // Check if position is within room bounds
-    if (Math.abs(position[0]) + newAssetDims.width/2 > halfWidth ||
-        Math.abs(position[2]) + newAssetDims.depth/2 > halfDepth) {
+    if (Math.abs(position[0]) + newAssetDims.width / 2 > halfWidth ||
+      Math.abs(position[2]) + newAssetDims.depth / 2 > halfDepth) {
       continue
     }
-    
+
     // Check for collisions
     let hasCollision = false
     const newBox = {
@@ -104,7 +112,7 @@ export const findNonCollidingPosition = (
       width: newAssetDims.width,
       depth: newAssetDims.depth
     }
-    
+
     for (const asset of existingAssets) {
       const assetDims = getAssetDimensions(asset.type)
       const assetBox = {
@@ -112,18 +120,18 @@ export const findNonCollidingPosition = (
         width: assetDims.width,
         depth: assetDims.depth
       }
-      
+
       if (checkCollision(newBox, assetBox)) {
         hasCollision = true
         break
       }
     }
-    
+
     if (!hasCollision) {
       return position
     }
   }
-  
+
   // Fallback: place at origin with offset
   console.warn('Could not find non-colliding position, using fallback')
   return [existingAssets.length * 0.5, 0, 0]
@@ -146,20 +154,20 @@ export const snapToGrid = (position, gridSize = 0.25) => {
 export const validateAssetPositions = (assets, roomBounds = { width: 10, depth: 10 }) => {
   const validatedAssets = []
   const occupiedPositions = []
-  
+
   for (const asset of assets) {
     const dims = getAssetDimensions(asset.type)
     let position = asset.position || [0, 0, 0]
-    
+
     // Check if position is valid and non-colliding
     let needsNewPosition = false
-    
+
     // Check bounds
-    if (Math.abs(position[0]) + dims.width/2 > roomBounds.width/2 ||
-        Math.abs(position[2]) + dims.depth/2 > roomBounds.depth/2) {
+    if (Math.abs(position[0]) + dims.width / 2 > roomBounds.width / 2 ||
+      Math.abs(position[2]) + dims.depth / 2 > roomBounds.depth / 2) {
       needsNewPosition = true
     }
-    
+
     // Check collisions
     if (!needsNewPosition) {
       const assetBox = { position, width: dims.width, depth: dims.depth }
@@ -170,12 +178,12 @@ export const validateAssetPositions = (assets, roomBounds = { width: 10, depth: 
         }
       }
     }
-    
+
     // Find new position if needed
     if (needsNewPosition) {
       position = findNonCollidingPosition(validatedAssets, asset.type, roomBounds)
     }
-    
+
     // Add to validated list
     const validatedAsset = { ...asset, position: snapToGrid(position) }
     validatedAssets.push(validatedAsset)
@@ -185,7 +193,7 @@ export const validateAssetPositions = (assets, roomBounds = { width: 10, depth: 
       depth: dims.depth
     })
   }
-  
+
   return validatedAssets
 }
 
@@ -196,15 +204,15 @@ export const getRoomBoundsFromWalls = (walls) => {
   if (!walls || walls.length === 0) {
     return { width: 10, depth: 10 }
   }
-  
+
   const allX = walls.flatMap(w => [w.start[0], w.end[0]])
   const allZ = walls.flatMap(w => [w.start[2], w.end[2]])
-  
+
   const minX = Math.min(...allX)
   const maxX = Math.max(...allX)
   const minZ = Math.min(...allZ)
   const maxZ = Math.max(...allZ)
-  
+
   return {
     width: maxX - minX,
     depth: maxZ - minZ,

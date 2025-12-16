@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { 
-  Building2, Users, Package, Plus, Edit2, Trash2, Eye, 
+import {
+  Building2, Users, Package, Plus, Edit2, Trash2, Eye,
   ChevronRight, Search, Mail, MapPin, TrendingUp
 } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import useGroupStore from '../stores/groupStore'
 import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
 
 /**
  * Admin Groups Page - Professional Group Management
@@ -27,13 +28,13 @@ const AdminGroups = () => {
     sendInvitation,
     setSelectedGroup
   } = useGroupStore()
-  
+
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [editingGroup, setEditingGroup] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
-  
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -42,28 +43,37 @@ const AdminGroups = () => {
     address: '',
     website: ''
   })
-  
+
   const [inviteData, setInviteData] = useState({
     company_email: '',
     company_name: '',
     message: '',
     expires_in_days: 30
   })
-  
+
   useEffect(() => {
-    fetchGroups(token)
-  }, [])
-  
+    if (token) {
+      fetchGroups(token)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]) // Only refetch when token changes
+
   useEffect(() => {
-    if (selectedGroup) {
+    if (selectedGroup?.id && token) {
       fetchGroup(selectedGroup.id, token)
     }
-  }, [selectedGroup])
-  
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedGroup?.id, token]) // Only refetch when ID or token changes
+
   const handleCreateGroup = async (e) => {
     e.preventDefault()
     try {
-      const newGroup = await createGroup(formData, token)
+      // Sanitize data: remove empty strings
+      const sanitizedData = Object.fromEntries(
+        Object.entries(formData).filter(([_, v]) => v !== '')
+      )
+
+      const newGroup = await createGroup(sanitizedData, token)
       setShowCreateModal(false)
       setFormData({ name: '', description: '', contact_email: '', contact_phone: '', address: '', website: '' })
       setSelectedGroup(newGroup)
@@ -71,28 +81,39 @@ const AdminGroups = () => {
       alert('Kunne ikke opprette gruppe')
     }
   }
-  
+
   const handleUpdateGroup = async (e) => {
     e.preventDefault()
     try {
-      await updateGroup(editingGroup.id, formData, token)
+      // Sanitize data: remove empty strings
+      const sanitizedData = Object.fromEntries(
+        Object.entries(formData).filter(([_, v]) => v !== '')
+      )
+
+      await updateGroup(editingGroup.id, sanitizedData, token)
       setShowEditModal(false)
       setEditingGroup(null)
     } catch (error) {
       alert('Kunne ikke oppdatere gruppe')
     }
   }
-  
+
   const handleDeleteGroup = async (groupId) => {
     if (window.confirm('Er du sikker på at du vil slette denne gruppen?')) {
       try {
         await deleteGroup(groupId, token)
+        alert('Gruppe slettet!')
       } catch (error) {
-        alert(error.message || 'Kunne ikke slette gruppe')
+        const errorMsg = error.response?.data?.message || error.message || 'Kunne ikke slette gruppe'
+        if (errorMsg.includes('aktive selskaper') || errorMsg.includes('active_companies')) {
+          alert('⚠️ Kan ikke slette gruppe med aktive selskaper!\n\nDu må først fjerne eller slette alle selskaper fra gruppen.')
+        } else {
+          alert('❌ Feil: ' + errorMsg)
+        }
       }
     }
   }
-  
+
   const handleRemoveCompany = async (companyId) => {
     if (window.confirm('Vil du fjerne dette selskapet fra gruppen?')) {
       try {
@@ -102,7 +123,7 @@ const AdminGroups = () => {
       }
     }
   }
-  
+
   const handleInviteCompany = async (e) => {
     e.preventDefault()
     try {
@@ -114,7 +135,7 @@ const AdminGroups = () => {
       alert('Kunne ikke sende invitasjon')
     }
   }
-  
+
   const openEditModal = (group) => {
     setEditingGroup(group)
     setFormData({
@@ -127,7 +148,7 @@ const AdminGroups = () => {
     })
     setShowEditModal(true)
   }
-  
+
   if (loading && groups.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -135,7 +156,7 @@ const AdminGroups = () => {
       </div>
     )
   }
-  
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-8 flex items-center justify-between">
@@ -150,7 +171,7 @@ const AdminGroups = () => {
           Tilbake til Dashboard
         </button>
       </div>
-      
+
       <div className="flex gap-6">
         {/* Groups Sidebar */}
         <div className="w-80 bg-white rounded-xl shadow-sm border border-gray-200">
@@ -164,7 +185,7 @@ const AdminGroups = () => {
                 <Plus size={18} />
               </button>
             </div>
-            
+
             <input
               type="text"
               placeholder="Søk grupper..."
@@ -173,7 +194,7 @@ const AdminGroups = () => {
               className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           <div className="p-4 space-y-2 max-h-[600px] overflow-y-auto">
             {groups
               .filter(g => g.name.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -181,11 +202,10 @@ const AdminGroups = () => {
                 <div
                   key={group.id}
                   onClick={() => setSelectedGroup(group)}
-                  className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                    selectedGroup?.id === group.id
-                      ? 'bg-blue-50 border-blue-200 border'
-                      : 'hover:bg-gray-50 border border-transparent'
-                  }`}
+                  className={`p-3 rounded-lg cursor-pointer transition-colors ${selectedGroup?.id === group.id
+                    ? 'bg-blue-50 border-blue-200 border'
+                    : 'hover:bg-gray-50 border border-transparent'
+                    }`}
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -200,7 +220,7 @@ const AdminGroups = () => {
               ))}
           </div>
         </div>
-        
+
         {/* Main Content */}
         <div className="flex-1">
           {selectedGroup ? (
@@ -226,7 +246,7 @@ const AdminGroups = () => {
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-4 gap-4 mt-6">
                   <div className="text-center">
                     <p className="text-2xl font-bold">{selectedGroup.companies_count || 0}</p>
@@ -248,7 +268,7 @@ const AdminGroups = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold">Selskaper i gruppen</h3>
@@ -260,7 +280,7 @@ const AdminGroups = () => {
                     Inviter selskap
                   </button>
                 </div>
-                
+
                 <div className="space-y-4">
                   {companies.map(company => (
                     <div key={company.id} className="p-4 border rounded-lg">
@@ -294,7 +314,7 @@ const AdminGroups = () => {
                       </div>
                     </div>
                   ))}
-                  
+
                   {companies.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
                       <Building2 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
@@ -313,7 +333,7 @@ const AdminGroups = () => {
           )}
         </div>
       </div>
-      
+
       {/* Modals */}
       {(showCreateModal || showEditModal) && (
         <GroupFormModal
@@ -328,7 +348,7 @@ const AdminGroups = () => {
           }}
         />
       )}
-      
+
       {showInviteModal && (
         <InviteModal
           show={showInviteModal}
@@ -345,68 +365,68 @@ const AdminGroups = () => {
 // Form Modal Component
 const GroupFormModal = ({ show, isEdit, formData, setFormData, onSubmit, onClose }) => {
   if (!show) return null
-  
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl max-w-2xl w-full p-6">
         <h2 className="text-xl font-bold mb-6">
           {isEdit ? 'Rediger gruppe' : 'Opprett ny gruppe'}
         </h2>
-        
+
         <form onSubmit={onSubmit}>
           <div className="space-y-4">
             <input
               type="text"
               placeholder="Gruppenavn"
               value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-3 py-2 border rounded-lg"
               required
             />
-            
+
             <textarea
               placeholder="Beskrivelse"
               value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className="w-full px-3 py-2 border rounded-lg"
               rows="3"
             />
-            
+
             <div className="grid grid-cols-2 gap-4">
               <input
                 type="email"
                 placeholder="Kontakt e-post"
                 value={formData.contact_email}
-                onChange={(e) => setFormData({...formData, contact_email: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
               />
-              
+
               <input
                 type="tel"
                 placeholder="Telefon"
                 value={formData.contact_phone}
-                onChange={(e) => setFormData({...formData, contact_phone: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
               />
             </div>
-            
+
             <input
               type="text"
               placeholder="Adresse"
               value={formData.address}
-              onChange={(e) => setFormData({...formData, address: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
               className="w-full px-3 py-2 border rounded-lg"
             />
-            
+
             <input
               type="url"
               placeholder="Nettside"
               value={formData.website}
-              onChange={(e) => setFormData({...formData, website: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, website: e.target.value })}
               className="w-full px-3 py-2 border rounded-lg"
             />
           </div>
-          
+
           <div className="flex justify-end gap-3 mt-6">
             <button type="button" onClick={onClose} className="px-4 py-2 border rounded-lg hover:bg-gray-50">
               Avbryt
@@ -423,49 +443,145 @@ const GroupFormModal = ({ show, isEdit, formData, setFormData, onSubmit, onClose
 
 // Invite Modal Component
 const InviteModal = ({ show, inviteData, setInviteData, onSubmit, onClose }) => {
+  const [createNew, setCreateNew] = useState(false)
+  const [createdAdmin, setCreatedAdmin] = useState(null)
+
   if (!show) return null
-  
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+
+    if (createNew) {
+      // Create new company/tenant with admin user
+      const formData = new FormData(e.target)
+      try {
+        const response = await axios.post('/api/tenants', {
+          name: formData.get('company_name'),
+          type: 'company',
+          parentTenantId: null, // or get from context if needed
+          adminEmail: formData.get('admin_email'),
+          adminName: formData.get('admin_name')
+        }, {
+          headers: { Authorization: `Bearer ${useAuthStore.getState().token}` }
+        })
+
+        // Show the generated password
+        setCreatedAdmin(response.data.admin)
+        alert(`Selskap opprettet!\n\nAdmin bruker:\nE-post: ${response.data.admin.email}\nMidlertidig passord: ${response.data.admin.tempPassword}\n\n⚠️ Lagre passordet nå - det vises ikke igjen!`)
+      } catch (error) {
+        console.error('Error creating company:', error)
+        alert('Kunne ikke opprette selskap: ' + (error.response?.data?.message || error.message))
+      }
+      return
+    }
+
+    // Regular invite
+    onSubmit(e)
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl max-w-lg w-full p-6">
-        <h2 className="text-xl font-bold mb-6">Inviter selskap</h2>
-        
-        <form onSubmit={onSubmit}>
+      <div className="bg-white rounded-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+        <h2 className="text-xl font-bold mb-6">
+          {createNew ? 'Opprett nytt selskap' : 'Inviter selskap'}
+        </h2>
+
+        {createdAdmin && (
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <h3 className="font-semibold text-green-900 mb-2">✅ Selskap opprettet!</h3>
+            <div className="text-sm text-green-800 space-y-1">
+              <p><strong>Admin e-post:</strong> {createdAdmin.email}</p>
+              <p><strong>Midlertidig passord:</strong> <code className="bg-white px-2 py-1 rounded">{createdAdmin.tempPassword}</code></p>
+              <p className="text-xs mt-2">⚠️ Send dette passordet til admin-brukeren på en sikker måte!</p>
+            </div>
+          </div>
+        )}
+
+        <div className="mb-4">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={createNew}
+              onChange={(e) => setCreateNew(e.target.checked)}
+              className="rounded"
+            />
+            <span>Opprett nytt selskap (med admin-bruker)</span>
+          </label>
+        </div>
+
+        <form onSubmit={handleSubmit}>
           <div className="space-y-4">
             <input
               type="text"
+              name="company_name"
               placeholder="Selskapsnavn"
-              value={inviteData.company_name}
-              onChange={(e) => setInviteData({...inviteData, company_name: e.target.value})}
+              defaultValue={inviteData.company_name}
+              onChange={(e) => setInviteData({ ...inviteData, company_name: e.target.value })}
               className="w-full px-3 py-2 border rounded-lg"
               required
             />
-            
-            <input
-              type="email"
-              placeholder="Kontakt e-post"
-              value={inviteData.company_email}
-              onChange={(e) => setInviteData({...inviteData, company_email: e.target.value})}
-              className="w-full px-3 py-2 border rounded-lg"
-              required
-            />
-            
-            <textarea
-              placeholder="Melding (valgfri)"
-              value={inviteData.message}
-              onChange={(e) => setInviteData({...inviteData, message: e.target.value})}
-              className="w-full px-3 py-2 border rounded-lg"
-              rows="3"
-            />
+
+            {createNew ? (
+              <>
+                <input
+                  type="email"
+                  name="admin_email"
+                  placeholder="Admin e-post"
+                  className="w-full px-3 py-2 border rounded-lg"
+                  required
+                />
+
+                <input
+                  type="text"
+                  name="admin_name"
+                  placeholder="Admin navn"
+                  className="w-full px-3 py-2 border rounded-lg"
+                  required
+                />
+
+                <div className="text-xs text-gray-600 bg-blue-50 p-3 rounded">
+                  <strong>ℹ️ Automatisk opprettelse:</strong>
+                  <ul className="mt-1 ml-4 list-disc">
+                    <li>Et nytt selskap (tenant) vil bli opprettet</li>
+                    <li>En admin-bruker vil bli opprettet automatisk</li>
+                    <li>Et midlertidig passord vil bli generert</li>
+                    <li>Du må sende passordet til admin-brukeren</li>
+                  </ul>
+                </div>
+              </>
+            ) : (
+              <>
+                <input
+                  type="email"
+                  name="company_email"
+                  placeholder="Kontakt e-post"
+                  defaultValue={inviteData.company_email}
+                  onChange={(e) => setInviteData({ ...inviteData, company_email: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                  required
+                />
+
+                <textarea
+                  name="message"
+                  placeholder="Melding (valgfri)"
+                  defaultValue={inviteData.message}
+                  onChange={(e) => setInviteData({ ...inviteData, message: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                  rows="3"
+                />
+              </>
+            )}
           </div>
-          
+
           <div className="flex justify-end gap-3 mt-6">
             <button type="button" onClick={onClose} className="px-4 py-2 border rounded-lg hover:bg-gray-50">
-              Avbryt
+              {createdAdmin ? 'Lukk' : 'Avbryt'}
             </button>
-            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-              Send invitasjon
-            </button>
+            {!createdAdmin && (
+              <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                {createNew ? 'Opprett selskap' : 'Send invitasjon'}
+              </button>
+            )}
           </div>
         </form>
       </div>

@@ -74,17 +74,17 @@ router.get('/:id', async (req, res) => {
       'SELECT * FROM locations WHERE id = $1 AND tenant_id = $2',
       [req.params.id, req.user.tenantId]
     )
-    
+
     if (location.length === 0) {
       return res.status(404).json({ message: 'Lokasjon ikke funnet' })
     }
-    
+
     // Get floors
     const { rows: floors } = await query(
       'SELECT * FROM floors WHERE location_id = $1 ORDER BY floor_number',
       [req.params.id]
     )
-    
+
     // Get all rooms for these floors in one query (N+1 optimization)
     const floorIds = floors.map(f => f.id)
     let allRooms = []
@@ -101,7 +101,7 @@ router.get('/:id', async (req, res) => {
     floors.forEach(floor => {
       floor.rooms = allRooms.filter(r => r.floor_id === floor.id)
     })
-    
+
     res.json({ ...location[0], floors })
   } catch (error) {
     console.error('Get location error:', error)
@@ -112,36 +112,78 @@ router.get('/:id', async (req, res) => {
 // Create new location
 router.post('/', async (req, res) => {
   try {
-    const { name, address, postalCode, city } = req.body
-    
+    const { name, address, type, floors, rooms, employees, status, tenant_id } = req.body
+
+    // Use tenant_id from request body if admin, otherwise use authenticated user's tenantId
+    const tenantId = tenant_id || req.user.tenantId
+
     if (isMockDb()) {
       const newLocation = {
-        id: `mock-loc-${Date.now()}`,
-        tenant_id: req.user.tenantId,
+        id: String(mockDB.locations.length + 1),
+        tenant_id: tenantId,
         name,
         address,
-        postal_code: postalCode,
-        city,
-        country: 'Norge',
+        type: type || 'office',
+        floors: floors || 0,
+        rooms: rooms || 0,
+        employees: employees || 0,
+        assets: 0,
+        status: status || 'active',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
 
       mockDB.locations.push(newLocation)
+
+      // Generate floors and rooms if requested
+      if (floors > 0) {
+        const roomsPerFloor = Math.ceil((rooms || 0) / floors)
+        let roomsCreated = 0
+
+        for (let i = 1; i <= floors; i++) {
+          const floorId = `mock-floor-${newLocation.id}-${i}`
+          mockDB.floors.push({
+            id: floorId,
+            location_id: newLocation.id,
+            name: `${i}. etasje`,
+            floor_number: i,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+
+          // Generate rooms for this floor
+          const roomsForThisFloor = Math.min(roomsPerFloor, (rooms || 0) - roomsCreated)
+          for (let j = 1; j <= roomsForThisFloor; j++) {
+            mockDB.rooms.push({
+              id: `mock-room-${newLocation.id}-${i}-${j}`,
+              floor_id: floorId,
+              name: `Rom ${i}0${j}`,
+              room_type: 'office',
+              dimensions: { width: 5, depth: 4, height: 2.5 },
+              position: { x: 0, y: 0, z: 0 },
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            roomsCreated++
+          }
+        }
+      }
+
       return res.status(201).json(newLocation)
     }
 
+    // For real database, create with new schema
     const { rows } = await query(
-      `INSERT INTO locations (tenant_id, name, address, postal_code, city)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO locations (tenant_id, name, address, type, floors, rooms, employees, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [req.user.tenantId, name, address, postalCode, city]
+      [tenantId, name, address, type || 'office', floors || 0, rooms || 0, employees || 0, status || 'active']
     )
-    
+
     res.status(201).json(rows[0])
   } catch (error) {
     console.error('Create location error:', error)
-    res.status(500).json({ message: 'Kunne ikke opprette lokasjon' })
+    res.status(500).json({ message: 'Kunne ikke opprette lokasjon', error: error.message })
   }
 })
 
@@ -149,7 +191,7 @@ router.post('/', async (req, res) => {
 router.post('/:id/floors', async (req, res) => {
   try {
     const { name, floorNumber } = req.body
-    
+
     if (isMockDb()) {
       const location = mockDB.locations.find(
         l => l.id === req.params.id && l.tenant_id === req.user.tenantId
@@ -178,7 +220,7 @@ router.post('/:id/floors', async (req, res) => {
        RETURNING *`,
       [req.params.id, name, floorNumber]
     )
-    
+
     res.status(201).json(rows[0])
   } catch (error) {
     console.error('Create floor error:', error)
@@ -190,7 +232,7 @@ router.post('/:id/floors', async (req, res) => {
 router.post('/:locationId/floors/:floorId/rooms', async (req, res) => {
   try {
     const { name, roomType, dimensions, position } = req.body
-    
+
     if (isMockDb()) {
       // Verify location ownership
       const location = mockDB.locations.find(
@@ -231,11 +273,52 @@ router.post('/:locationId/floors/:floorId/rooms', async (req, res) => {
        RETURNING *`,
       [req.params.floorId, name, roomType, dimensions, position]
     )
-    
+
     res.status(201).json(rows[0])
   } catch (error) {
     console.error('Create room error:', error)
     res.status(500).json({ message: 'Kunne ikke opprette rom' })
+  }
+})
+
+// Delete location
+router.delete('/:id', async (req, res) => {
+  try {
+    if (isMockDb()) {
+      const index = mockDB.locations.findIndex(
+        l => l.id === req.params.id && l.tenant_id === req.user.tenantId
+      )
+
+      if (index === -1) {
+        return res.status(404).json({ message: 'Lokasjon ikke funnet' })
+      }
+
+      // Remove associated floors and rooms
+      const locationId = req.params.id
+      mockDB.floors = mockDB.floors.filter(f => f.location_id !== locationId)
+      mockDB.rooms = mockDB.rooms.filter(r => {
+        const floor = mockDB.floors.find(f => f.id === r.floor_id)
+        return floor?.location_id !== locationId
+      })
+
+      mockDB.locations.splice(index, 1)
+      return res.json({ message: 'Lokasjon slettet' })
+    }
+
+    // Delete from database with CASCADE (should delete floors and rooms automatically)
+    const { rowCount } = await query(
+      'DELETE FROM locations WHERE id = $1 AND tenant_id = $2',
+      [req.params.id, req.user.tenantId]
+    )
+
+    if (rowCount === 0) {
+      return res.status(404).json({ message: 'Lokasjon ikke funnet' })
+    }
+
+    res.json({ message: 'Lokasjon slettet' })
+  } catch (error) {
+    console.error('Delete location error:', error)
+    res.status(500).json({ message: 'Kunne ikke slette lokasjon', error: error.message })
   }
 })
 

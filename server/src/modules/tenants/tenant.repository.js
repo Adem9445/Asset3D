@@ -24,42 +24,73 @@ export const tenantRepository = {
   async findAllForUser(user) {
     if (useMock()) {
       const mockDB = await getMockDb()
+      let tenants = []
+
       if (user.role === 'admin') {
-        return mockDB.tenants.map(normalizeTenant)
-      }
-
-      if (user.role === 'group') {
-        return mockDB.tenants
+        tenants = mockDB.tenants
+      } else if (user.role === 'group') {
+        tenants = mockDB.tenants
           .filter((tenant) => tenant.id === user.tenantId || tenant.parent_tenant_id === user.tenantId)
-          .map(normalizeTenant)
+      } else {
+        tenants = mockDB.tenants.filter((tenant) => tenant.id === user.tenantId)
       }
 
-      return mockDB.tenants.filter((tenant) => tenant.id === user.tenantId).map(normalizeTenant)
+      // Add user count to each tenant
+      return tenants.map(tenant => ({
+        ...normalizeTenant(tenant),
+        userCount: mockDB.users.filter(u => u.tenant_id === tenant.id).length
+      }))
     }
 
     const baseQuery = `
-      SELECT id, name, type, parent_tenant_id AS "parentTenantId", settings, created_at, updated_at
-      FROM tenants
+      SELECT 
+        t.id, 
+        t.name, 
+        t.type, 
+        t.parent_tenant_id AS "parentTenantId", 
+        t.settings, 
+        t.created_at AS created, 
+        t.updated_at,
+        COUNT(u.id) AS "userCount"
+      FROM tenants t
+      LEFT JOIN users u ON t.id = u.tenant_id
     `
 
     if (user.role === 'admin') {
-      const { rows } = await query(`${baseQuery} ORDER BY created_at DESC`)
-      return rows
+      const { rows } = await query(`
+        ${baseQuery}
+        GROUP BY t.id, t.name, t.type, t.parent_tenant_id, t.settings, t.created_at, t.updated_at
+        ORDER BY t.created_at DESC
+      `)
+      return rows.map(row => ({
+        ...row,
+        userCount: parseInt(row.userCount) || 0
+      }))
     }
 
     if (user.role === 'group') {
-      const { rows } = await query(
-        `${baseQuery} WHERE id = $1 OR parent_tenant_id = $1 ORDER BY created_at DESC`,
-        [user.tenantId]
-      )
-      return rows
+      const { rows } = await query(`
+        ${baseQuery}
+        WHERE t.id = $1 OR t.parent_tenant_id = $1
+        GROUP BY t.id, t.name, t.type, t.parent_tenant_id, t.settings, t.created_at, t.updated_at
+        ORDER BY t.created_at DESC
+      `, [user.tenantId])
+      return rows.map(row => ({
+        ...row,
+        userCount: parseInt(row.userCount) || 0
+      }))
     }
 
-    const { rows } = await query(
-      `${baseQuery} WHERE id = $1 ORDER BY created_at DESC`,
-      [user.tenantId]
-    )
-    return rows
+    const { rows } = await query(`
+      ${baseQuery}
+      WHERE t.id = $1
+      GROUP BY t.id, t.name, t.type, t.parent_tenant_id, t.settings, t.created_at, t.updated_at
+      ORDER BY t.created_at DESC
+    `, [user.tenantId])
+    return rows.map(row => ({
+      ...row,
+      userCount: parseInt(row.userCount) || 0
+    }))
   },
 
   async findById(id) {

@@ -6,7 +6,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import RoomBuilder from '../components/3d/RoomBuilder'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_URL = '/api'
 
 const CompanyDashboard = () => {
   const { user, token } = useAuthStore()
@@ -15,7 +15,7 @@ const CompanyDashboard = () => {
   const [showRoomBuilder, setShowRoomBuilder] = useState(false)
   const [selectedRoom, setSelectedRoom] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
-  
+
   const [companyData, setCompanyData] = useState({
     name: user?.companyName || 'Demo Company AS',
     locations: [],
@@ -25,7 +25,7 @@ const CompanyDashboard = () => {
     recentActivity: [],
     upcomingMaintenance: []
   })
-  
+
   const [stats, setStats] = useState({
     totalLocations: 0,
     totalRooms: 0,
@@ -37,12 +37,13 @@ const CompanyDashboard = () => {
 
   useEffect(() => {
     fetchCompanyData()
-  }, [])
-  
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run once on mount
+
   const fetchCompanyData = async () => {
     try {
       const headers = { Authorization: `Bearer ${token}` }
-      
+
       // Fetch locations
       let locations = []
       try {
@@ -70,14 +71,14 @@ const CompanyDashboard = () => {
           }
         ]
       }
-      
+
       // Fetch assets
       try {
         await fetchAssets()
       } catch (error) {
         console.error('Error fetching assets:', error)
       }
-      
+
       // Fetch users/employees for company
       let employees = []
       try {
@@ -90,7 +91,7 @@ const CompanyDashboard = () => {
           { id: 2, name: 'Kari Hansen', role: 'Developer', department: 'IT' }
         ]
       }
-      
+
       setCompanyData(prev => ({
         ...prev,
         locations,
@@ -106,11 +107,11 @@ const CompanyDashboard = () => {
           { id: 3, action: 'Dashboard oppdatert', location: 'System', time: 'Nettopp' }
         ],
         upcomingMaintenance: [
-          { id: 1, item: 'Vedlikeholdssjekk', location: 'Hovedkontor', date: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0] },
-          { id: 2, item: 'System backup', location: 'Alle lokasjoner', date: new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0] }
+          { id: 1, item: 'Vedlikeholdssjekk', location: 'Hovedkontor', date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] },
+          { id: 2, item: 'System backup', location: 'Alle lokasjoner', date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] }
         ]
       }))
-      
+
       setStats({
         totalLocations: locations.length,
         totalRooms: locations.reduce((sum, loc) => sum + (loc.rooms || 0), 0),
@@ -123,7 +124,7 @@ const CompanyDashboard = () => {
       console.error('Error fetching company data:', error)
     }
   }
-  
+
   const handleAddLocation = () => {
     navigate('/company/locations')
   }
@@ -131,7 +132,7 @@ const CompanyDashboard = () => {
   const handleViewAssets = () => {
     navigate('/company/assets')
   }
-  
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -139,7 +140,7 @@ const CompanyDashboard = () => {
         <h1 className="text-3xl font-bold text-gray-900">Company Dashboard</h1>
         <p className="text-gray-600 mt-2">Velkommen til {companyData.name}</p>
       </div>
-      
+
       {/* Tabs */}
       <div className="border-b mb-6">
         <div className="flex gap-6">
@@ -152,11 +153,10 @@ const CompanyDashboard = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+              className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
             >
               {tab.label}
             </button>
@@ -202,7 +202,7 @@ const CompanyDashboard = () => {
           </div>
         </Link>
 
-        <div className="card p-6">
+        <Link to="/company/suppliers" className="card p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-yellow-100 rounded-lg">
               <Building2 className="w-6 h-6 text-yellow-600" />
@@ -212,7 +212,7 @@ const CompanyDashboard = () => {
               <p className="text-sm text-gray-600">Leverandører</p>
             </div>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Siste aktivitet og kommende vedlikehold */}

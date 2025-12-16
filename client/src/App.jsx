@@ -5,10 +5,14 @@ import LoginPage from './pages/LoginPage'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminAssets from './pages/AdminAssets'
 import AdminGroups from './pages/AdminGroups'
+import AdminUsers from './pages/AdminUsers'
 import GroupDashboard from './pages/GroupDashboard'
 import CompanyDashboard from './pages/CompanyDashboard'
 import UserDashboard from './pages/UserDashboard'
 import SupplierDashboard from './pages/SupplierDashboard'
+import CompanySuppliers from './pages/CompanySuppliers'
+import SupplierDetails from './pages/SupplierDetails'
+import CompanyUsers from './pages/CompanyUsers'
 import LocationManager from './pages/LocationManager'
 import AssetViewer from './pages/AssetViewer'
 import Layout from './components/Layout'
@@ -34,12 +38,12 @@ function App() {
         {/* Redirect basert på brukerrolle */}
         <Route path="/" element={
           user?.role === 'admin' ? <Navigate to="/admin" /> :
-          user?.role === 'group' ? <Navigate to="/group" /> :
-          user?.role === 'company' ? <Navigate to="/company" /> :
-          user?.role === 'supplier' ? <Navigate to="/supplier" /> :
-          <Navigate to="/user" />
+            user?.role === 'group' ? <Navigate to="/group" /> :
+              user?.role === 'company' ? <Navigate to="/company" /> :
+                user?.role === 'supplier' ? <Navigate to="/supplier" /> :
+                  <Navigate to="/user" />
         } />
-        
+
         {/* Admin ruter */}
         {user?.role === 'admin' && (
           <>
@@ -48,10 +52,10 @@ function App() {
             <Route path="/admin/groups" element={<AdminGroups />} />
             <Route path="/admin/tenants" element={<AdminDashboard />} />
             <Route path="/admin/companies" element={<AdminDashboard />} />
-            <Route path="/admin/users" element={<AdminDashboard />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
           </>
         )}
-        
+
         {/* Group ruter */}
         {(user?.role === 'admin' || user?.role === 'group') && (
           <>
@@ -83,8 +87,9 @@ function App() {
               path="/company/:companyId/edit"
               element={<CompanyPlaceholderPage mode="edit" />}
             />
-            <Route path="/company/users" element={<CompanyDashboard />} />
-            <Route path="/company/suppliers" element={<CompanyDashboard />} />
+            <Route path="/company/users" element={<CompanyUsers />} />
+            <Route path="/company/suppliers" element={<CompanySuppliers />} />
+            <Route path="/company/suppliers/:id" element={<SupplierDetails />} />
           </>
         )}
 

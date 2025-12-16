@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 import useAssetStore from '../stores/assetStore'
 import { Building2, Users, Layers, TrendingUp, Package, MapPin, Settings, Database, Shield, Activity, AlertTriangle, CheckCircle } from 'lucide-react'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_URL = '/api'
 
 const AdminDashboard = () => {
+  const navigate = useNavigate()
   const { user, token } = useAuthStore()
   const { fetchAssets, stats: assetStats } = useAssetStore()
   const [stats, setStats] = useState({
@@ -31,38 +33,43 @@ const AdminDashboard = () => {
   const fetchAdminData = async () => {
     try {
       setLoading(true)
-      
+
       // Fetch real data from API
       const headers = { Authorization: `Bearer ${token}` }
-      
+
       // Fetch tenants
+      let tenantsData = []
       try {
         const tenantsRes = await axios.get(`${API_URL}/tenants`, { headers })
-        setTenants(tenantsRes.data)
+        // API returns {tenants: [...], tenantContext: {...}}
+        tenantsData = tenantsRes.data.tenants || tenantsRes.data || []
+        setTenants(tenantsData)
       } catch (error) {
         console.error('Error fetching tenants:', error)
       }
-      
+
       // Fetch users
       let totalUsers = 0
+      let usersData = []
       try {
         const usersRes = await axios.get(`${API_URL}/users`, { headers })
-        totalUsers = usersRes.data.length
+        usersData = usersRes.data || []
+        totalUsers = usersData.length
       } catch (error) {
         console.error('Error fetching users:', error)
       }
-      
+
       // Fetch assets
       try {
         await fetchAssets()
       } catch (error) {
         console.error('Error fetching assets:', error)
       }
-      
+
       // Set combined stats
       setStats(prev => ({
         ...prev,
-        totalTenants: tenants.length,
+        totalTenants: tenantsData.length,
         totalUsers: totalUsers,
         totalAssets: assetStats.totalAssets,
         monthlyGrowth: 12.5, // Calculate from real data
@@ -71,10 +78,10 @@ const AdminDashboard = () => {
         storageUsed: Math.floor(Math.random() * 60) + 20,
         lastBackup: new Date().toISOString()
       }))
-      
+
       // Generate recent activity from real data
       const activities = []
-      
+
       if (assetStats.recentAssets?.length > 0) {
         activities.push({
           id: 1,
@@ -84,7 +91,7 @@ const AdminDashboard = () => {
           type: 'info'
         })
       }
-      
+
       if (tenants.length > 0) {
         activities.push({
           id: 2,
@@ -94,14 +101,14 @@ const AdminDashboard = () => {
           type: 'success'
         })
       }
-      
+
       activities.push(
         { id: 3, action: 'System status', details: 'Alle systemer operative', time: '1 time siden', type: 'success' },
         { id: 4, action: 'Database backup', details: 'Automatisk backup fullført', time: '6 timer siden', type: 'info' }
       )
-      
+
       setRecentActivity(activities)
-      
+
       // System alerts
       setSystemAlerts([
         { id: 1, level: 'info', message: 'Systemet kjører normalt', active: true },
@@ -126,7 +133,7 @@ const AdminDashboard = () => {
   }
 
   const getHealthColor = (health) => {
-    switch(health) {
+    switch (health) {
       case 'operational': return 'text-green-500'
       case 'degraded': return 'text-yellow-500'
       case 'down': return 'text-red-500'
@@ -135,7 +142,7 @@ const AdminDashboard = () => {
   }
 
   const getActivityIcon = (type) => {
-    switch(type) {
+    switch (type) {
       case 'success': return <CheckCircle className="w-4 h-4 text-green-500" />
       case 'warning': return <AlertTriangle className="w-4 h-4 text-yellow-500" />
       default: return <Activity className="w-4 h-4 text-blue-500" />
@@ -157,25 +164,23 @@ const AdminDashboard = () => {
         <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
         <p className="text-gray-600 mt-2">Velkommen tilbake, {user?.name}</p>
       </div>
-      
+
       {/* System Alerts */}
       {systemAlerts.length > 0 && (
         <div className="mb-6 space-y-2">
           {systemAlerts.map(alert => (
-            <div key={alert.id} className={`p-4 rounded-lg border ${
-              alert.level === 'warning' ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50 border-blue-200'
-            }`}>
+            <div key={alert.id} className={`p-4 rounded-lg border ${alert.level === 'warning' ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50 border-blue-200'
+              }`}>
               <div className="flex items-center gap-2">
-                <AlertTriangle className={`w-5 h-5 ${
-                  alert.level === 'warning' ? 'text-yellow-600' : 'text-blue-600'
-                }`} />
+                <AlertTriangle className={`w-5 h-5 ${alert.level === 'warning' ? 'text-yellow-600' : 'text-blue-600'
+                  }`} />
                 <span className="font-medium">{alert.message}</span>
               </div>
             </div>
           ))}
         </div>
       )}
-      
+
       {/* Hovedstatistikk */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -187,7 +192,7 @@ const AdminDashboard = () => {
           <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalTenants}</p>
           <p className="text-xs text-green-600 mt-2">+2 denne måneden</p>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <Users className="w-10 h-10 text-green-500" />
@@ -197,7 +202,7 @@ const AdminDashboard = () => {
           <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalUsers}</p>
           <p className="text-xs text-green-600 mt-2">+{Math.round(stats.monthlyGrowth)}% vekst</p>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <Package className="w-10 h-10 text-purple-500" />
@@ -207,7 +212,7 @@ const AdminDashboard = () => {
           <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalAssets}</p>
           <p className="text-xs text-gray-600 mt-2">På tvers av alle lokasjoner</p>
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <Database className="w-10 h-10 text-orange-500" />
@@ -220,7 +225,7 @@ const AdminDashboard = () => {
           <p className="text-xs text-gray-600 mt-2">Siste backup: {stats.lastBackup ? new Date(stats.lastBackup).toLocaleString('nb-NO') : 'N/A'}</p>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Tenant oversikt */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -242,33 +247,43 @@ const AdminDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {tenants.map(tenant => (
-                  <tr key={tenant.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-2">
-                      <span className="font-medium text-sm">{tenant.name}</span>
-                    </td>
-                    <td className="py-3 px-2">
-                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded capitalize">
-                        {tenant.type}
-                      </span>
-                    </td>
-                    <td className="py-3 px-2 text-sm">{tenant.users}</td>
-                    <td className="py-3 px-2 text-sm text-gray-600">
-                      {new Date(tenant.created).toLocaleDateString('nb-NO')}
-                    </td>
-                    <td className="py-3 px-2">
-                      <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        Aktiv
-                      </span>
+                {Array.isArray(tenants) && tenants.length > 0 ? (
+                  tenants.map(tenant => (
+                    <tr key={tenant.id} className="border-b hover:bg-gray-50">
+                      <td className="py-3 px-2">
+                        <span className="font-medium text-sm">{tenant.name}</span>
+                      </td>
+                      <td className="py-3 px-2">
+                        <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded capitalize">
+                          {tenant.type}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 text-sm">
+                        {tenant.userCount ?? 0}
+                      </td>
+                      <td className="py-3 px-2 text-sm text-gray-600">
+                        {new Date(tenant.created).toLocaleDateString('nb-NO')}
+                      </td>
+                      <td className="py-3 px-2">
+                        <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          Aktiv
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="py-4 text-center text-gray-500">
+                      Ingen organisasjoner funnet
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
         </div>
-        
+
         {/* Nylig aktivitet */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold mb-4">Nylig Aktivitet</h2>
@@ -286,33 +301,40 @@ const AdminDashboard = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Hurtighandlinger */}
       <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold mb-4">Hurtighandlinger</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button 
-            onClick={() => window.location.href = '/admin/groups'}
+          <button
+            onClick={() => navigate('/admin/groups')}
             className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
           >
             <Layers className="w-6 h-6 text-blue-600 mb-2" />
             <span className="text-sm font-medium">Administrer Grupper</span>
           </button>
-          <button 
-            onClick={() => window.location.href = '/admin/assets'}
+          <button
+            onClick={() => navigate('/admin/assets')}
             className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
           >
             <Package className="w-6 h-6 text-green-600 mb-2" />
             <span className="text-sm font-medium">Administrer Assets</span>
           </button>
-          <button 
-            onClick={() => window.location.href = '/admin/tenants'}
+          <button
+            onClick={() => navigate('/admin/tenants')}
             className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
           >
             <Building2 className="w-6 h-6 text-purple-600 mb-2" />
             <span className="text-sm font-medium">Administrer Tenants</span>
           </button>
-          <button 
+          <button
+            onClick={() => navigate('/admin/users')}
+            className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <Users className="w-6 h-6 text-indigo-600 mb-2" />
+            <span className="text-sm font-medium">Administrer Brukere</span>
+          </button>
+          <button
             onClick={() => {
               if (window.confirm('Vil du ta en system backup nå?')) {
                 alert('Backup startet - du vil få beskjed når den er ferdig')

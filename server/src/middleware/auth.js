@@ -3,16 +3,17 @@ import { query } from '../db/init.js'
 import { createCsrfToken } from '../modules/security/tokens/csrfToken.js'
 
 export const authenticateToken = async (req, res, next) => {
+  console.log('DEBUG: authenticateToken called for', req.originalUrl)
   const authHeader = req.headers['authorization']
   const token = authHeader && authHeader.split(' ')[1]
-  
+
   if (!token) {
-    return res.status(401).json({ 
+    return res.status(401).json({
       error: 'Ingen tilgangstoken funnet',
-      message: 'Autentisering kreves for denne ressursen' 
+      message: 'Autentisering kreves for denne ressursen'
     })
   }
-  
+
   try {
     const jwtSecret = process.env.JWT_SECRET
     if (!jwtSecret) {
@@ -20,9 +21,9 @@ export const authenticateToken = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, jwtSecret)
-    
+
     let userData = null
-    
+
     // Check if using mock database
     if (process.env.USE_MOCK_DB === 'true') {
       const mockDB = (await import('../db/mockData.js')).default
@@ -50,19 +51,19 @@ export const authenticateToken = async (req, res, next) => {
          WHERE u.id = $1 AND u.is_active = true`,
         [decoded.userId]
       )
-      
+
       if (rows.length > 0) {
         userData = rows[0]
       }
     }
-    
+
     if (!userData) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Ugyldig bruker',
-        message: 'Brukeren eksisterer ikke eller er deaktivert' 
+        message: 'Brukeren eksisterer ikke eller er deaktivert'
       })
     }
-    
+
     req.user = {
       id: userData.id,
       email: userData.email,
@@ -78,15 +79,15 @@ export const authenticateToken = async (req, res, next) => {
     next()
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Token utløpt',
-        message: 'Din sesjon har utløpt. Vennligst logg inn på nytt.' 
+        message: 'Din sesjon har utløpt. Vennligst logg inn på nytt.'
       })
     }
-    
-    return res.status(403).json({ 
+
+    return res.status(403).json({
       error: 'Ugyldig token',
-      message: 'Tokenen kunne ikke verifiseres' 
+      message: 'Tokenen kunne ikke verifiseres'
     })
   }
 }

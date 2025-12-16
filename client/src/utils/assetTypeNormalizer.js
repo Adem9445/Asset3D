@@ -8,11 +8,17 @@ export const normalizeAssetType = (type) => {
 
   const typeMap = {
     meeting_table: 'meetingTable',
+    meetingtable: 'meetingTable',
     filing_cabinet: 'filingCabinet',
+    filingcabinet: 'filingCabinet',
     trash_bin: 'trashBin',
+    trashbin: 'trashBin',
     coffee_machine: 'coffeeMachine',
+    coffeemachine: 'coffeeMachine',
     water_cooler: 'waterCooler',
+    watercooler: 'waterCooler',
     washing_machine: 'washingMachine',
+    washingmachine: 'washingMachine',
     dish_washer: 'dishwasher',
     dishwash: 'dishwasher',
     vent: 'ventilator'

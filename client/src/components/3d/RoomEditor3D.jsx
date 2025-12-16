@@ -1,9 +1,9 @@
-import { useState, useRef, Suspense } from 'react'
+import { useState, useRef, Suspense, useCallback } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { 
-  OrbitControls, 
-  Grid, 
-  Environment, 
+import {
+  OrbitControls,
+  Grid,
+  Environment,
   PerspectiveCamera,
   Stats,
   ContactShadows,
@@ -25,20 +25,22 @@ import { ComputerAsset, PrinterAsset, PhoneAsset, WhiteboardAsset, FilingCabinet
 import { CoffeeMachineAsset, MicrowaveAsset, RefrigeratorAsset, WaterCoolerAsset, PlantAsset } from './assets/KitchenAssets'
 import { DishwasherAsset, WashingMachineAsset, DryerAsset, FreezerAsset, StoveAsset, VentilatorAsset } from './assets/ApplianceAssets'
 import { prepareAssetFor3D } from '../../utils/assetTypeNormalizer'
+import { getAssetDimensions } from '../../utils/assetPositioning'
 
 /**
  * Hovedkomponent for 3D rom-editor
  */
-const RoomEditor3D = ({ 
-  roomData, 
-  assets = [], 
-  onAssetUpdate, 
+const RoomEditor3D = ({
+  roomData,
+  assets = [],
+  onAssetUpdate,
   onAssetDelete,
+  onAssetCreate,
   selectedAssetId,
   onSelectAsset,
   editMode = 'view',
   showGrid = true,
-  showStats = false 
+  showStats = false
 }) => {
   const [transformMode, setTransformMode] = useState('translate')
   const [selectedObject, setSelectedObject] = useState(null)
@@ -80,8 +82,34 @@ const RoomEditor3D = ({
 
   const handleTransform = (transformData) => {
     if (selectedAssetId && onAssetUpdate) {
+      let newPosition = transformData.position
+
+      // Enforce bounds on rotation change
+      const asset = assets.find(a => a.id === selectedAssetId)
+      if (asset && roomData) {
+        const normalizedType = prepareAssetFor3D(asset).type
+        const dims = getAssetDimensions(normalizedType)
+
+        const rotationY = transformData.rotation[1]
+        const isRotated90 = Math.round(Math.abs(rotationY) / (Math.PI / 2)) % 2 === 1
+
+        const effectiveWidth = isRotated90 ? dims.depth : dims.width
+        const effectiveDepth = isRotated90 ? dims.width : dims.depth
+
+        const minX = -roomData.width / 2 + effectiveWidth / 2 + 0.1
+        const maxX = roomData.width / 2 - effectiveWidth / 2 - 0.1
+        const minZ = -roomData.depth / 2 + effectiveDepth / 2 + 0.1
+        const maxZ = roomData.depth / 2 - effectiveDepth / 2 - 0.1
+
+        newPosition = [
+          Math.max(minX, Math.min(maxX, newPosition[0])),
+          newPosition[1],
+          Math.max(minZ, Math.min(maxZ, newPosition[2]))
+        ]
+      }
+
       onAssetUpdate(selectedAssetId, {
-        position: transformData.position,
+        position: newPosition,
         rotation: transformData.rotation,
         scale: transformData.scale
       })
@@ -109,6 +137,17 @@ const RoomEditor3D = ({
   }
 
   const preparedAssets = assets.map((asset) => prepareAssetFor3D(asset))
+
+  const setControls = useCallback((controls) => {
+    if (controls) {
+      window.orbitControls = controls
+      // Only log once or when controls actually change
+      if (!window.orbitControlsInitialized) {
+        console.log('OrbitControls initialized')
+        window.orbitControlsInitialized = true
+      }
+    }
+  }, [])
 
   return (
     <div className="relative w-full h-full">
@@ -170,158 +209,171 @@ const RoomEditor3D = ({
       {/* 3D Canvas */}
       <Canvas shadows>
         <Suspense fallback={null}>
-          {/* Kamera */}
-          <PerspectiveCamera
-            makeDefault
-            position={[10, 8, 10]}
-            fov={60}
-            near={0.1}
-            far={1000}
-          />
-
-          {/* Kontroller */}
-          <OrbitControls
-            ref={(controls) => { 
-              window.orbitControls = controls
-              console.log('OrbitControls initialized')
-            }}
-            enablePan={true}
-            enableZoom={true}
-            enableRotate={true}
-            maxPolarAngle={Math.PI / 2.1}
-            minDistance={2}
-            maxDistance={20}
-            target={[0, 0, 0]}
-            makeDefault
-          />
-
-          {/* Lyssetting */}
-          <ambientLight intensity={0.6} />
-          <directionalLight
-            position={[10, 10, 5]}
-            intensity={0.8}
-            castShadow
-            shadow-mapSize={[2048, 2048]}
-            shadow-camera-far={50}
-            shadow-camera-left={-10}
-            shadow-camera-right={10}
-            shadow-camera-top={10}
-            shadow-camera-bottom={-10}
-          />
-          <pointLight position={[-10, 5, -10]} intensity={0.5} color="#ffcc77" />
-
-          {/* Miljø */}
-          <Environment preset="studio" background={false} />
-
-          {/* Grid */}
-          {showGrid && (
-            <Grid
-              args={[20, 20]}
-              cellSize={0.5}
-              cellThickness={0.5}
-              cellColor="#e5e7eb"
-              sectionSize={2}
-              sectionThickness={1}
-              sectionColor="#9ca3af"
-              fadeDistance={30}
-              fadeStrength={1}
-              followCamera={false}
-              infiniteGrid={false}
+          <DragDropManager onDrop={(item, position) => {
+            console.log('Dropped item:', item, 'at position:', position)
+            if (onAssetCreate) {
+              onAssetCreate(item.type, position)
+            }
+          }}>
+            {/* Kamera */}
+            <PerspectiveCamera
+              makeDefault
+              position={[10, 8, 10]}
+              fov={60}
+              near={0.1}
+              far={1000}
             />
-          )}
 
-          {/* Gulv */}
-          <mesh
-            rotation={[-Math.PI / 2, 0, 0]}
-            position={[0, -0.01, 0]}
-            receiveShadow
-          >
-            <planeGeometry args={[20, 20]} />
-            <meshStandardMaterial color="#f3f4f6" />
-          </mesh>
+            {/* Kontroller */}
+            <OrbitControls
+              ref={setControls}
+              enablePan={true}
+              enableZoom={true}
+              enableRotate={true}
+              maxPolarAngle={Math.PI / 2.1}
+              minDistance={2}
+              maxDistance={20}
+              target={[0, 0, 0]}
+              makeDefault
+            />
 
-          {/* Kontaktskygger */}
-          <ContactShadows
-            position={[0, 0, 0]}
-            opacity={0.4}
-            scale={20}
-            blur={1.5}
-            far={4.5}
-          />
+            {/* Lyssetting */}
+            <ambientLight intensity={0.6} />
+            <directionalLight
+              position={[10, 10, 5]}
+              intensity={0.8}
+              castShadow
+              shadow-mapSize={[2048, 2048]}
+              shadow-camera-far={50}
+              shadow-camera-left={-10}
+              shadow-camera-right={10}
+              shadow-camera-top={10}
+              shadow-camera-bottom={-10}
+            />
+            <pointLight position={[-10, 5, -10]} intensity={0.5} color="#ffcc77" />
 
-          {/* Rom vegger */}
-          {roomData && (
-            <group name="room-walls">
-              {/* Bakvegg */}
-              <mesh position={[0, 2.5, -roomData.depth/2]} castShadow receiveShadow>
-                <boxGeometry args={[roomData.width, 5, 0.2]} />
-                <meshStandardMaterial color="#ffffff" />
-              </mesh>
-              
-              {/* Sidevegger */}
-              <mesh position={[-roomData.width/2, 2.5, 0]} castShadow receiveShadow>
-                <boxGeometry args={[0.2, 5, roomData.depth]} />
-                <meshStandardMaterial color="#ffffff" />
-              </mesh>
-              <mesh position={[roomData.width/2, 2.5, 0]} castShadow receiveShadow>
-                <boxGeometry args={[0.2, 5, roomData.depth]} />
-                <meshStandardMaterial color="#ffffff" />
-              </mesh>
+            {/* Miljø */}
+            <Environment preset="studio" background={false} />
 
-              {/* Rom navn */}
-              <Text
-                position={[0, 4, -roomData.depth/2 + 0.15]}
-                fontSize={0.5}
-                color="#1f2937"
-                anchorX="center"
-                anchorY="middle"
-              >
-                {roomData.name}
-              </Text>
-            </group>
-          )}
+            {/* Grid */}
+            {showGrid && (
+              <Grid
+                args={[20, 20]}
+                cellSize={0.5}
+                cellThickness={0.5}
+                cellColor="#e5e7eb"
+                sectionSize={2}
+                sectionThickness={1}
+                sectionColor="#9ca3af"
+                fadeDistance={30}
+                fadeStrength={1}
+                followCamera={false}
+                infiniteGrid={false}
+              />
+            )}
 
-          {/* Assets med fysikk */}
-          <Physics gravity={[0, -9.81, 0]} debug={false}>
-            {preparedAssets.map((asset, index) => {
-              const AssetComponent = AssetComponents[asset.type]
-              if (!AssetComponent) return null
+            {/* Gulv */}
+            <mesh
+              rotation={[-Math.PI / 2, 0, 0]}
+              position={[0, -0.01, 0]}
+              receiveShadow
+            >
+              <planeGeometry args={[20, 20]} />
+              <meshStandardMaterial color="#f3f4f6" />
+            </mesh>
 
-              // Generate default non-overlapping positions if not set
-              const getDefaultPosition = (idx) => {
-                const gridX = 2 // spacing between assets
-                const gridZ = 2
-                const itemsPerRow = 5
-                const row = Math.floor(idx / itemsPerRow)
-                const col = idx % itemsPerRow
-                return [
-                  (col - Math.floor(itemsPerRow / 2)) * gridX,
-                  0,
-                  (row - 1) * gridZ
-                ]
-              }
+            {/* Kontaktskygger */}
+            <ContactShadows
+              position={[0, 0, 0]}
+              opacity={0.4}
+              scale={20}
+              blur={1.5}
+              far={4.5}
+            />
 
-              const position = asset.position && asset.position.length === 3 
-                ? asset.position 
-                : getDefaultPosition(index)
+            {/* Rom vegger */}
+            {roomData && (
+              <group name="room-walls">
+                {/* Bakvegg */}
+                <mesh position={[0, 2.5, -roomData.depth / 2]} castShadow receiveShadow>
+                  <boxGeometry args={[roomData.width, 5, 0.2]} />
+                  <meshStandardMaterial color="#ffffff" />
+                </mesh>
 
-              const isEditEnabled = editMode === 'move' || editMode === 'edit'
-              
-              // Ensure room bounds for drag constraints
-              const roomBounds = roomData ? {
-                minX: -roomData.width/2 + 1,
-                maxX: roomData.width/2 - 1,
-                minZ: -roomData.depth/2 + 1,
-                maxZ: roomData.depth/2 - 1
-              } : null
-              
-              return (
-                <group key={asset.id} position={position}>
+                {/* Sidevegger */}
+                <mesh position={[-roomData.width / 2, 2.5, 0]} castShadow receiveShadow>
+                  <boxGeometry args={[0.2, 5, roomData.depth]} />
+                  <meshStandardMaterial color="#ffffff" />
+                </mesh>
+                <mesh position={[roomData.width / 2, 2.5, 0]} castShadow receiveShadow>
+                  <boxGeometry args={[0.2, 5, roomData.depth]} />
+                  <meshStandardMaterial color="#ffffff" />
+                </mesh>
+
+                {/* Rom navn */}
+                <Text
+                  position={[0, 4, -roomData.depth / 2 + 0.15]}
+                  fontSize={0.5}
+                  color="#1f2937"
+                  anchorX="center"
+                  anchorY="middle"
+                >
+                  {roomData.name}
+                </Text>
+              </group>
+            )}
+
+            {/* Assets med fysikk */}
+            <Physics gravity={[0, -9.81, 0]} debug={false}>
+              {preparedAssets.map((asset, index) => {
+                const AssetComponent = AssetComponents[asset.type]
+                if (!AssetComponent) return null
+
+                // Generate default non-overlapping positions if not set
+                const getDefaultPosition = (idx) => {
+                  const gridX = 2 // spacing between assets
+                  const gridZ = 2
+                  const itemsPerRow = 5
+                  const row = Math.floor(idx / itemsPerRow)
+                  const col = idx % itemsPerRow
+                  return [
+                    (col - Math.floor(itemsPerRow / 2)) * gridX,
+                    0,
+                    (row - 1) * gridZ
+                  ]
+                }
+
+                const position = asset.position && asset.position.length === 3
+                  ? asset.position
+                  : getDefaultPosition(index)
+
+                const isEditEnabled = editMode === 'move' || editMode === 'edit'
+
+                // Calculate bounds based on asset dimensions to keep it inside room
+                const dims = getAssetDimensions(asset.type)
+
+                // Adjust dimensions for rotation
+                const rotationY = asset.rotation ? asset.rotation[1] : 0
+                const isRotated90 = Math.round(Math.abs(rotationY) / (Math.PI / 2)) % 2 === 1
+
+                const effectiveWidth = isRotated90 ? dims.depth : dims.width
+                const effectiveDepth = isRotated90 ? dims.width : dims.depth
+
+                const assetBounds = roomData ? {
+                  minX: -roomData.width / 2 + effectiveWidth / 2 + 0.1,
+                  maxX: roomData.width / 2 - effectiveWidth / 2 - 0.1,
+                  minZ: -roomData.depth / 2 + effectiveDepth / 2 + 0.1,
+                  maxZ: roomData.depth / 2 - effectiveDepth / 2 - 0.1
+                } : null
+
+                return (
                   <SimpleDrag
+                    key={asset.id}
+                    position={position}
                     enabled={isEditEnabled}
                     snapToGrid={true}
                     gridSize={0.25}
-                    bounds={roomBounds}
+                    bounds={assetBounds}
                     onDragEnd={(newPosition) => {
                       console.log(`Asset ${asset.id} moved to:`, newPosition)
                       if (onAssetUpdate) {
@@ -331,48 +383,45 @@ const RoomEditor3D = ({
                   >
                     <group
                       userData={{ assetId: asset.id, isAsset: true }}
-                      onPointerOver={() => setHoveredAsset(asset)}
-                      onPointerOut={() => setHoveredAsset(null)}
                       onClick={(e) => {
                         e.stopPropagation()
                         handleAssetClick(asset, e.object)
                       }}
                     >
                       <AssetComponent
-                        position={[0, 0, 0]}
-                        rotation={asset.rotation || [0, 0, 0]}
-                        scale={asset.scale || [1, 1, 1]}
+                        selected={selectedAssetId === asset.id}
+                        rotation={asset.rotation}
+                        scale={asset.scale}
                         dimensions={asset.dimensions}
                         color={asset.color}
-                        selected={asset.id === selectedAssetId}
                       />
-                      {hoveredAsset?.id === asset.id && (
-                        <Html position={[0, 1, 0]}>
-                          <div className="bg-black/75 text-white px-2 py-1 rounded text-xs whitespace-nowrap">
-                            {asset.name}
-                          </div>
-                        </Html>
+                      {/* Selection highlight */}
+                      {selectedAssetId === asset.id && (
+                        <mesh position={[0, 0, 0]}>
+                          <boxGeometry args={[dims.width + 0.1, dims.height + 0.1, dims.depth + 0.1]} />
+                          <meshBasicMaterial color="#4287f5" wireframe />
+                        </mesh>
                       )}
                     </group>
                   </SimpleDrag>
-                </group>
-              )
-            })}
-          </Physics>
+                )
+              })}
+            </Physics>
 
-          {/* Transform controller for valgt objekt */}
-          {editMode === 'edit' && selectedObject && (
-            <TransformController
-              object={selectedObject}
-              mode={transformMode}
-              onTransform={handleTransform}
-              showY={transformMode !== 'translate'} // Begrens Y-akse for translate
-              size={0.5}
-            />
-          )}
+            {/* Transform controller for valgt objekt */}
+            {editMode === 'edit' && selectedObject && (
+              <TransformController
+                object={selectedObject}
+                mode={transformMode}
+                onTransform={handleTransform}
+                showY={transformMode !== 'translate'} // Begrens Y-akse for translate
+                size={0.5}
+              />
+            )}
 
-          {/* Performance stats */}
-          {showStats && <Stats />}
+            {/* Performance stats */}
+            {showStats && <Stats />}
+          </DragDropManager>
         </Suspense>
       </Canvas>
     </div>

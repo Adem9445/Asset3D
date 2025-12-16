@@ -1,4 +1,5 @@
 export const tenantContext = (req, res, next) => {
+  console.log('DEBUG: tenantContext called for', req.originalUrl)
   const headerTenantId = req.headers['x-tenant-id']
   const tenantId = headerTenantId || req.user?.tenantId
 

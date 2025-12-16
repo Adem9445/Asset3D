@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_URL = '/api'
 
 const useBuildingStore = create((set, get) => ({
   buildings: [],
@@ -13,7 +13,7 @@ const useBuildingStore = create((set, get) => ({
     set({ loading: true, error: null })
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.get(`${API_URL}/buildings`, {
+      const response = await axios.get(`${API_URL}/locations`, {
         headers: { Authorization: `Bearer ${token}` }
       })
 
@@ -44,7 +44,7 @@ const useBuildingStore = create((set, get) => ({
     set({ loading: true, error: null })
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.get(`${API_URL}/buildings/${id}`, {
+      const response = await axios.get(`${API_URL}/locations/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
 

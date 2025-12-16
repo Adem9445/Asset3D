@@ -8,6 +8,7 @@ import tenantRoutes from './modules/tenants/tenant.routes.js'
 import locationRoutes from './routes/locations.js'
 import assetRoutes from './routes/assets.js'
 import userRoutes from './routes/users.js'
+import suppliersRoutes from './routes/suppliers.js'
 import buildingsRoutes from './routes/buildings.js'
 import groupsRoutes from './modules/groups/group.routes.js'
 import { authenticateToken } from './middleware/auth.js'
@@ -20,13 +21,15 @@ import { logger, httpLogger } from './utils/logger.js'
 
 dotenv.config()
 const app = express()
-const PORT = process.env.PORT || 5000
+const PORT = process.env.PORT || 5001
 
-// Rate limiting
+// Rate limiting - More generous for development
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // limit each IP to 1000 requests per windowMs (increased for development)
-  message: 'For mange forespørsler fra denne IP-adressen'
+  max: 5000, // limit each IP to 5000 requests per windowMs (generous for development)
+  message: 'For mange forespørsler fra denne IP-adressen',
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 })
 
 // Middleware
@@ -54,6 +57,7 @@ app.use('/api/locations', authenticateToken, tenantContext, locationRoutes)
 app.use('/api/assets', authenticateToken, tenantContext, assetRoutes)
 app.use('/api/users', authenticateToken, tenantContext, csrfGuard, userRoutes)
 app.use('/api/buildings', authenticateToken, tenantContext, buildingsRoutes)
+app.use('/api/suppliers', authenticateToken, tenantContext, suppliersRoutes)
 
 // Error handling
 app.use(errorHandler)
@@ -61,21 +65,28 @@ app.use(errorHandler)
 // Start server
 const startServer = async () => {
   try {
-    // Try to initialize database
-    try {
-      await initDatabase()
-    } catch (dbError) {
-      console.warn('⚠️  Kunne ikke koble til PostgreSQL:', dbError.message)
-      console.log('🔄 Starter i DEMO-MODUS uten database...')
-      
-      // Import and use mock data
+    // Check if we should use mock DB explicitly
+    if (process.env.USE_MOCK_DB === 'true') {
+      console.log('🔄 Starter i DEMO-MODUS (konfigurert)...')
       const { initMockData } = await import('./db/mockData.js')
       await initMockData()
-      
-      // Set flag for routes to use mock data
-      process.env.USE_MOCK_DB = 'true'
+    } else {
+      // Try to initialize database
+      try {
+        await initDatabase()
+      } catch (dbError) {
+        console.warn('⚠️  Kunne ikke koble til PostgreSQL:', dbError.message)
+        console.log('🔄 Starter i DEMO-MODUS uten database...')
+
+        // Import and use mock data
+        const { initMockData } = await import('./db/mockData.js')
+        await initMockData()
+
+        // Set flag for routes to use mock data
+        process.env.USE_MOCK_DB = 'true'
+      }
     }
-    
+
     app.listen(PORT, () => {
       logger.info(`🚀 Server kjører på port ${PORT}`)
       logger.info(`📍 API tilgjengelig på http://localhost:${PORT}/api`)

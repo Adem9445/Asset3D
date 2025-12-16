@@ -21,14 +21,8 @@ export const useAuthStore = create(
             email,
             password,
           })
-          
-          const { user, token, csrfToken } = response.data
 
-          // Sett token i axios header
-          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-          if (csrfToken) {
-            axios.defaults.headers.common['X-CSRF-Token'] = csrfToken
-          }
+          const { user, token, csrfToken } = response.data
 
           set({
             user,
@@ -37,7 +31,7 @@ export const useAuthStore = create(
             isLoading: false,
             csrfToken: csrfToken || null,
           })
-          
+
           return { success: true }
         } catch (error) {
           set({
@@ -49,8 +43,6 @@ export const useAuthStore = create(
       },
 
       logout: () => {
-        delete axios.defaults.headers.common['Authorization']
-        delete axios.defaults.headers.common['X-CSRF-Token']
         set({
           user: null,
           token: null,
@@ -72,19 +64,19 @@ export const useAuthStore = create(
         }
 
         try {
-          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-          if (csrfToken) {
-            axios.defaults.headers.common['X-CSRF-Token'] = csrfToken
-          }
           const response = await axios.get(`${API_URL}/auth/me`)
           if (response.data?.csrfToken) {
-            axios.defaults.headers.common['X-CSRF-Token'] = response.data.csrfToken
+            set({
+              user: response.data.user,
+              isAuthenticated: true,
+              csrfToken: response.data.csrfToken,
+            })
+          } else {
+            set({
+              user: response.data.user,
+              isAuthenticated: true,
+            })
           }
-          set({
-            user: response.data.user,
-            isAuthenticated: true,
-            csrfToken: response.data?.csrfToken || get().csrfToken,
-          })
         } catch (error) {
           get().logout()
         }
@@ -100,4 +92,33 @@ export const useAuthStore = create(
       }),
     }
   )
+)
+
+// Configure axios interceptors to automatically include auth headers
+axios.interceptors.request.use((config) => {
+  const state = useAuthStore.getState()
+
+  if (state.token) {
+    config.headers.Authorization = `Bearer ${state.token}`
+  }
+
+  if (state.csrfToken) {
+    config.headers['X-CSRF-Token'] = state.csrfToken
+  }
+
+  return config
+}, (error) => {
+  return Promise.reject(error)
+})
+
+// Handle 401 errors by logging out
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid
+      useAuthStore.getState().logout()
+    }
+    return Promise.reject(error)
+  }
 )

@@ -5,7 +5,7 @@
 
 const axios = require('axios')
 
-const API_URL = 'http://localhost:5000/api'
+const API_URL = 'http://localhost:5001/api'
 let authToken = null
 
 // Farger for console output
@@ -35,12 +35,12 @@ const tests = {
         return true
       } else {
         // Prøv root endpoint
-        const rootResponse = await axios.get('http://localhost:5000/')
-        log.success('Server kjører på port 5000')
+        const rootResponse = await axios.get('http://localhost:5001/')
+        log.success('Server kjører på port 5001')
         return true
       }
     } catch (error) {
-      log.error('Server ikke tilgjengelig på port 5000')
+      log.error('Server ikke tilgjengelig på port 5001')
       return false
     }
   },
@@ -52,7 +52,7 @@ const tests = {
         email: 'admin@asset3d.no',
         password: 'demo123'
       })
-      
+
       if (response.data.token) {
         authToken = response.data.token
         log.success(`Innlogging vellykket - Token mottatt`)
@@ -71,7 +71,7 @@ const tests = {
       const response = await axios.get(`${API_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${authToken}` }
       })
-      
+
       if (response.data.user) {
         log.success('Hentet current user')
         log.info(`User ID: ${response.data.user.id}`)
@@ -89,7 +89,7 @@ const tests = {
       const response = await axios.get(`${API_URL}/tenants`, {
         headers: { Authorization: `Bearer ${authToken}` }
       })
-      
+
       log.success(`Hentet ${response.data.length || 0} tenants`)
       return true
     } catch (error) {
@@ -108,7 +108,7 @@ const tests = {
       const response = await axios.get(`${API_URL}/locations`, {
         headers: { Authorization: `Bearer ${authToken}` }
       })
-      
+
       log.success(`Hentet ${response.data.length || 0} lokasjoner`)
       return true
     } catch (error) {
@@ -123,7 +123,7 @@ const tests = {
       const response = await axios.get(`${API_URL}/assets`, {
         headers: { Authorization: `Bearer ${authToken}` }
       })
-      
+
       log.success(`Hentet ${response.data.length || 0} assets`)
       return true
     } catch (error) {
@@ -152,7 +152,7 @@ const tests = {
       const response = await axios.get(`${API_URL}/assets/categories`, {
         headers: { Authorization: `Bearer ${authToken}` }
       })
-      
+
       if (response.data && response.data.length > 0) {
         log.success(`Database tilkobling OK - ${response.data.length} kategorier funnet`)
         return true
@@ -172,13 +172,13 @@ async function runAllTests() {
   console.log('\n' + colors.blue + '════════════════════════════════════════')
   console.log('   ASSET3D System Test Suite')
   console.log('════════════════════════════════════════' + colors.reset + '\n')
-  
+
   const results = {
     passed: 0,
     failed: 0,
     total: 0
   }
-  
+
   // Test rekkefølge
   const testOrder = [
     'serverHealth',
@@ -190,38 +190,38 @@ async function runAllTests() {
     'getLocations',
     'getAssets'
   ]
-  
+
   for (const testName of testOrder) {
     console.log(`\nTest ${results.total + 1}: ${testName}`)
     console.log('-------------------')
-    
+
     const testFn = tests[testName]
     if (testFn) {
       const success = await testFn()
       results.total++
-      
+
       if (success) {
         results.passed++
       } else {
         results.failed++
       }
-      
+
       // Vent litt mellom tester
       await new Promise(resolve => setTimeout(resolve, 100))
     }
   }
-  
+
   // Oppsummering
   console.log('\n' + colors.blue + '════════════════════════════════════════')
   console.log('   Test Resultater')
   console.log('════════════════════════════════════════' + colors.reset)
-  
+
   console.log(`\nTotalt: ${results.total} tester`)
   console.log(`${colors.green}Bestått: ${results.passed}${colors.reset}`)
   console.log(`${colors.red}Feilet: ${results.failed}${colors.reset}`)
-  
+
   const successRate = (results.passed / results.total * 100).toFixed(1)
-  
+
   if (results.failed === 0) {
     console.log(`\n${colors.green}✨ Alle tester bestått! (${successRate}%) ✨${colors.reset}`)
   } else if (results.passed > results.failed) {
@@ -229,15 +229,15 @@ async function runAllTests() {
   } else {
     console.log(`\n${colors.red}❌ Flere tester feilet (${successRate}%)${colors.reset}`)
   }
-  
+
   console.log('\n' + colors.blue + '════════════════════════════════════════' + colors.reset + '\n')
-  
+
   // Tips for feilsøking
   if (results.failed > 0) {
     console.log(colors.yellow + 'Tips for feilsøking:' + colors.reset)
     console.log('1. Sjekk at både server og client kjører (npm run dev)')
     console.log('2. Sjekk at PostgreSQL kjører hvis du bruker database')
-    console.log('3. Sjekk at demo-brukere er opprettet (curl -X POST http://localhost:5000/api/auth/init-demo)')
+    console.log('3. Sjekk at demo-brukere er opprettet (curl -X POST http://localhost:5001/api/auth/init-demo)')
     console.log('4. Se server-loggen for mer detaljerte feilmeldinger\n')
   } else {
     console.log(colors.green + '🎉 Systemet er klart til bruk!' + colors.reset)
