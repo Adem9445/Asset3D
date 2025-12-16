@@ -382,39 +382,48 @@ router.post('/save', authenticateToken, async (req, res) => {
 
         // Insert assets for room
         if (room.assets && room.assets.length > 0) {
-          for (const asset of room.assets) {
-            await client.query(
-              `INSERT INTO assets (
-                room_id, name, type, category,
-                position_x, position_y, position_z,
-                rotation_x, rotation_y, rotation_z,
-                scale_x, scale_y, scale_z,
-                data
-              ) VALUES (
-                $1, $2, $3, $4,
-                $5, $6, $7,
-                $8, $9, $10,
-                $11, $12, $13,
-                $14
-              )`,
-              [
-                roomId,
-                asset.name,
-                asset.type,
-                asset.category,
-                asset.position?.[0] || 0,
-                asset.position?.[1] || 0,
-                asset.position?.[2] || 0,
-                asset.rotation?.[0] || 0,
-                asset.rotation?.[1] || 0,
-                asset.rotation?.[2] || 0,
-                asset.scale?.[0] || 1,
-                asset.scale?.[1] || 1,
-                asset.scale?.[2] || 1,
-                JSON.stringify(asset.metadata || {})
-              ]
+          // Batch insert assets
+          const values = []
+          const placeholders = []
+          let paramCount = 1
+
+          room.assets.forEach(asset => {
+            placeholders.push(`(
+              $${paramCount++}, $${paramCount++}, $${paramCount++}, $${paramCount++},
+              $${paramCount++}, $${paramCount++}, $${paramCount++},
+              $${paramCount++}, $${paramCount++}, $${paramCount++},
+              $${paramCount++}, $${paramCount++}, $${paramCount++},
+              $${paramCount++}
+            )`)
+
+            values.push(
+              roomId,
+              asset.name,
+              asset.type,
+              asset.category,
+              asset.position?.[0] || 0,
+              asset.position?.[1] || 0,
+              asset.position?.[2] || 0,
+              asset.rotation?.[0] || 0,
+              asset.rotation?.[1] || 0,
+              asset.rotation?.[2] || 0,
+              asset.scale?.[0] || 1,
+              asset.scale?.[1] || 1,
+              asset.scale?.[2] || 1,
+              JSON.stringify(asset.metadata || {})
             )
-          }
+          })
+
+          await client.query(
+            `INSERT INTO assets (
+              room_id, name, type, category,
+              position_x, position_y, position_z,
+              rotation_x, rotation_y, rotation_z,
+              scale_x, scale_y, scale_z,
+              data
+            ) VALUES ${placeholders.join(', ')}`,
+            values
+          )
         }
       }
     }
