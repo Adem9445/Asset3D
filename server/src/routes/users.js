@@ -100,13 +100,22 @@ router.put('/:id', requireRole('admin', 'company'), async (req, res) => {
   try {
     const { name, role, permissions, isActive } = req.body
     
-    const { rows } = await query(
-      `UPDATE users
-       SET name = $1, role = $2, permissions = $3, is_active = $4, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5
-       RETURNING id, email, name, role, permissions, is_active`,
-      [name, role, permissions, isActive, req.params.id]
-    )
+    let queryStr = `
+      UPDATE users
+      SET name = $1, role = $2, permissions = $3, is_active = $4, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $5
+    `
+    const params = [name, role, permissions, isActive, req.params.id]
+
+    // Ensure tenant isolation for non-global admins
+    if (req.user.role !== 'admin') {
+      queryStr += ` AND tenant_id = $${params.length + 1}`
+      params.push(req.user.tenantId)
+    }
+
+    queryStr += ` RETURNING id, email, name, role, permissions, is_active`
+
+    const { rows } = await query(queryStr, params)
     
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Bruker ikke funnet' })
@@ -129,11 +138,17 @@ router.post('/:id/reset-password', requireRole('admin', 'company'), async (req, 
     }
     
     const passwordHash = await bcrypt.hash(newPassword, 10)
+
+    let queryStr = 'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2'
+    const params = [passwordHash, req.params.id]
+
+    // Ensure tenant isolation for non-global admins
+    if (req.user.role !== 'admin') {
+      queryStr += ` AND tenant_id = $${params.length + 1}`
+      params.push(req.user.tenantId)
+    }
     
-    const { rowCount } = await query(
-      'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [passwordHash, req.params.id]
-    )
+    const { rowCount } = await query(queryStr, params)
     
     if (rowCount === 0) {
       return res.status(404).json({ message: 'Bruker ikke funnet' })
