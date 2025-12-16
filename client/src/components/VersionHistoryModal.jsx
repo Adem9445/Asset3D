@@ -85,14 +85,19 @@ const VersionHistoryModal = ({ isOpen, onClose, dataKey = 'current_building' }) 
   if (!isOpen) return null
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="version-history-title"
+    >
       <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-3">
             <History className="text-blue-600" size={24} />
             <div>
-              <h2 className="text-xl font-bold">Versjonshistorikk</h2>
+              <h2 id="version-history-title" className="text-xl font-bold">Versjonshistorikk</h2>
               <p className="text-sm text-gray-500">
                 {versions.length} {versions.length === 1 ? 'versjon' : 'versjoner'} tilgjengelig
               </p>
@@ -101,6 +106,7 @@ const VersionHistoryModal = ({ isOpen, onClose, dataKey = 'current_building' }) 
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Lukk"
           >
             <X size={20} />
           </button>

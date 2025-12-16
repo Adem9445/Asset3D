@@ -22,13 +22,18 @@ const AssetLibrary = ({ onClose, onSelectAsset, roomInfo = null, floorInfo = nul
       )
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="asset-library-title"
+    >
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-2xl font-bold">Eiendelsbibliotek</h2>
+              <h2 id="asset-library-title" className="text-2xl font-bold">Eiendelsbibliotek</h2>
               {(roomInfo || floorInfo) && (
                 <p className="text-sm text-gray-600 mt-1">
                   Legger til i: {floorInfo?.name || ''} {floorInfo && roomInfo ? '→' : ''} {roomInfo?.name || ''}
@@ -38,6 +43,7 @@ const AssetLibrary = ({ onClose, onSelectAsset, roomInfo = null, floorInfo = nul
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 rounded-lg"
+              aria-label="Lukk"
             >
               <X size={20} />
             </button>
@@ -52,20 +58,24 @@ const AssetLibrary = ({ onClose, onSelectAsset, roomInfo = null, floorInfo = nul
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              aria-label="Søk etter eiendeler"
             />
           </div>
         </div>
 
         {/* Kategorier */}
-        <div className="flex gap-2 p-4 border-b border-gray-200">
+        <div className="flex gap-2 p-4 border-b border-gray-200" role="tablist">
           {categories.map(category => {
             const Icon = category.icon
+            const isSelected = selectedCategory === category.id
             return (
               <button
                 key={category.id}
+                role="tab"
+                aria-selected={isSelected}
                 onClick={() => setSelectedCategory(category.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  selectedCategory === category.id
+                  isSelected
                     ? 'bg-primary-100 text-primary-700'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
