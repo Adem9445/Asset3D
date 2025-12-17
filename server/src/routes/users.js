@@ -89,18 +89,33 @@ router.get('/', async (req, res) => {
 // Get single user
 router.get('/:id', async (req, res) => {
   try {
-    const { rows } = await query(
-      `SELECT id, email, name, role, permissions, is_active, last_login, created_at
+    // Ensure the requested user belongs to the same tenant as the requester
+    let queryStr = `SELECT id, email, name, role, permissions, is_active, last_login, created_at, tenant_id
        FROM users
-       WHERE id = $1`,
-      [req.params.id]
-    )
+       WHERE id = $1`
+    let params = [req.params.id]
+
+    if (req.user.role === 'group') {
+         queryStr += ` AND tenant_id IN (SELECT id FROM tenants WHERE id = $2 OR parent_tenant_id = $2)`
+         params.push(req.user.tenantId)
+    } else if (req.user.role !== 'admin') {
+         // Regular users/companies can only see users in their tenant
+         queryStr += ` AND tenant_id = $2`
+         params.push(req.user.tenantId)
+    }
+
+    const { rows } = await query(queryStr, params)
 
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Bruker ikke funnet' })
     }
 
-    res.json(rows[0])
+    const user = rows[0]
+
+    // Remove tenant_id from response unless we want to expose it
+    delete user.tenant_id
+
+    res.json(user)
   } catch (error) {
     console.error('Get user error:', error)
     res.status(500).json({ message: 'Kunne ikke hente bruker' })
