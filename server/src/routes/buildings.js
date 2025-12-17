@@ -393,7 +393,39 @@ router.post('/save', async (req, res) => {
 
         // Insert assets for room
         if (room.assets && room.assets.length > 0) {
+          const assetValues = []
+          const assetParams = []
+          let paramCount = 1
+
           for (const asset of room.assets) {
+            assetValues.push(`(
+                $${paramCount}, $${paramCount + 1}, $${paramCount + 2}, $${paramCount + 3},
+                $${paramCount + 4}, $${paramCount + 5}, $${paramCount + 6},
+                $${paramCount + 7}, $${paramCount + 8}, $${paramCount + 9},
+                $${paramCount + 10}, $${paramCount + 11}, $${paramCount + 12},
+                $${paramCount + 13}
+            )`)
+
+            assetParams.push(
+              roomId,
+              asset.name,
+              asset.type,
+              asset.category,
+              asset.position?.[0] || 0,
+              asset.position?.[1] || 0,
+              asset.position?.[2] || 0,
+              asset.rotation?.[0] || 0,
+              asset.rotation?.[1] || 0,
+              asset.rotation?.[2] || 0,
+              asset.scale?.[0] || 1,
+              asset.scale?.[1] || 1,
+              asset.scale?.[2] || 1,
+              JSON.stringify(asset.metadata || {})
+            )
+            paramCount += 14
+          }
+
+          if (assetValues.length > 0) {
             await client.query(
               `INSERT INTO assets (
                 room_id, name, type, category,
@@ -401,29 +433,8 @@ router.post('/save', async (req, res) => {
                 rotation_x, rotation_y, rotation_z,
                 scale_x, scale_y, scale_z,
                 data
-              ) VALUES (
-                $1, $2, $3, $4,
-                $5, $6, $7,
-                $8, $9, $10,
-                $11, $12, $13,
-                $14
-              )`,
-              [
-                roomId,
-                asset.name,
-                asset.type,
-                asset.category,
-                asset.position?.[0] || 0,
-                asset.position?.[1] || 0,
-                asset.position?.[2] || 0,
-                asset.rotation?.[0] || 0,
-                asset.rotation?.[1] || 0,
-                asset.rotation?.[2] || 0,
-                asset.scale?.[0] || 1,
-                asset.scale?.[1] || 1,
-                asset.scale?.[2] || 1,
-                JSON.stringify(asset.metadata || {})
-              ]
+              ) VALUES ${assetValues.join(', ')}`,
+              assetParams
             )
           }
         }
