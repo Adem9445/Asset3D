@@ -15,6 +15,7 @@ import SupplierDetails from './pages/SupplierDetails'
 import CompanyUsers from './pages/CompanyUsers'
 import LocationManager from './pages/LocationManager'
 import AssetViewer from './pages/AssetViewer'
+import BuildingViewer from './pages/BuildingViewer'
 import Layout from './components/Layout'
 import ComingSoonPage from './pages/ComingSoonPage'
 import CompanyPlaceholderPage from './pages/CompanyPlaceholderPage'
@@ -79,6 +80,7 @@ function App() {
             <Route path="/company" element={<CompanyDashboard />} />
             <Route path="/company/locations" element={<LocationManager />} />
             <Route path="/company/assets" element={<AssetViewer />} />
+            <Route path="/company/buildings/:buildingId" element={<BuildingViewer />} />
             <Route
               path="/company/:companyId"
               element={<CompanyPlaceholderPage mode="view" />}

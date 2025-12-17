@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit'
 import authRoutes from './routes/auth.js'
 import tenantRoutes from './modules/tenants/tenant.routes.js'
 import locationRoutes from './routes/locations.js'
+import floorsRoutes from './routes/floors.js'
 import assetRoutes from './routes/assets.js'
 import userRoutes from './routes/users.js'
 import suppliersRoutes from './routes/suppliers.js'
@@ -54,6 +55,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/groups', authenticateToken, groupsRoutes)
 app.use('/api/tenants', authenticateToken, tenantRoutes)
 app.use('/api/locations', authenticateToken, tenantContext, locationRoutes)
+app.use('/api/floors', authenticateToken, tenantContext, floorsRoutes)
 app.use('/api/assets', authenticateToken, tenantContext, assetRoutes)
 app.use('/api/users', authenticateToken, tenantContext, csrfGuard, userRoutes)
 app.use('/api/buildings', authenticateToken, tenantContext, buildingsRoutes)

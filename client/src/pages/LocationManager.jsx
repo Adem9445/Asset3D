@@ -365,6 +365,13 @@ const LocationManager = () => {
                   Vis detaljer
                 </button>
                 <button
+                  onClick={() => navigate(`/company/buildings/${location.id}`)}
+                  className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  title="3D Bygningsvisning"
+                >
+                  3D
+                </button>
+                <button
                   onClick={() => setEditingLocation(location)}
                   className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                   title="Rediger"

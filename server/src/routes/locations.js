@@ -281,6 +281,38 @@ router.post('/:locationId/floors/:floorId/rooms', async (req, res) => {
   }
 })
 
+// Get all floors for a location
+router.get('/:id/floors', async (req, res) => {
+  try {
+    if (isMockDb()) {
+      // Verify location ownership
+      const location = mockDB.locations.find(
+        l => l.id === req.params.id && l.tenant_id === req.user.tenantId
+      )
+
+      if (!location) {
+        return res.status(404).json({ message: 'Lokasjon ikke funnet' })
+      }
+
+      const floors = mockDB.floors
+        .filter(f => f.location_id === req.params.id)
+        .sort((a, b) => a.floor_number - b.floor_number)
+
+      return res.json(floors)
+    }
+
+    const { rows } = await query(
+      'SELECT * FROM floors WHERE location_id = $1 ORDER BY floor_number',
+      [req.params.id]
+    )
+
+    res.json(rows)
+  } catch (error) {
+    console.error('Get floors error:', error)
+    res.status(500).json({ message: 'Kunne ikke hente etasjer' })
+  }
+})
+
 // Delete location
 router.delete('/:id', async (req, res) => {
   try {
