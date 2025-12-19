@@ -44,7 +44,7 @@ const UserDashboard = () => {
         assigned_to: user?.id
       }))
 
-      setMyAssets(userAssets)
+      setMyAssets(userAssets || [])
 
       setUserStats({
         assignedAssets: userAssets.length || 3,
