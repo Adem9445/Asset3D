@@ -1,6 +1,7 @@
 /**
  * Storage Service for ASSET3D
  * Sentraliserer lokal lagring, versjonshåndtering og server-synkronisering
+ * med tydelig ansvar for tastatursnarveier, auto-save og fallback-lagring.
  */
 
 import axios from 'axios'
@@ -10,15 +11,18 @@ const API_URL = '/api'
 class StorageService {
   constructor() {
     this.storageKey = 'asset3d_data'
-    this.autoSaveInterval = null
+    this.maxVersions = 10
     this.pendingChanges = false
     this.lastSaved = null
-    this.saveCallbacks = new Set()
-    this.maxVersions = 10
-    this.keyboardShortcuts = new Map()
+    this.autoSaveInterval = null
     this.beforeUnloadHandler = null
+    this.saveCallbacks = new Set()
+    this.keyboardShortcuts = new Map()
 
+    this.isBrowser = typeof window !== 'undefined'
+    this.hasDocument = typeof document !== 'undefined'
     this.handleKeydown = this.handleKeydown.bind(this)
+
     this.initializeKeyboardShortcuts()
   }
 
@@ -26,8 +30,13 @@ class StorageService {
    * Keyboard shortcut handling
    */
   initializeKeyboardShortcuts() {
-    if (typeof document === 'undefined') return
+    if (!this.hasDocument) return
     document.addEventListener('keydown', this.handleKeydown)
+  }
+
+  disposeKeyboardShortcuts() {
+    if (!this.hasDocument) return
+    document.removeEventListener('keydown', this.handleKeydown)
   }
 
   handleKeydown(event) {
@@ -80,6 +89,10 @@ class StorageService {
     return `${this.storageKey}_version_${key}`
   }
 
+  hasStorageAccess() {
+    return this.isBrowser && typeof localStorage !== 'undefined'
+  }
+
   parseJSON(value, fallback = null) {
     try {
       return JSON.parse(value)
@@ -92,6 +105,8 @@ class StorageService {
    * Local storage helpers
    */
   saveLocal(key, data, { createVersion = true } = {}) {
+    if (!this.hasStorageAccess()) return false
+
     try {
       const timestamp = new Date().toISOString()
       const payload = { data, timestamp, version: '1.0.0' }
@@ -111,6 +126,8 @@ class StorageService {
   }
 
   loadLocal(key) {
+    if (!this.hasStorageAccess()) return null
+
     try {
       const saved = localStorage.getItem(this.storageKeyFor(key))
       if (!saved) return null
@@ -123,6 +140,8 @@ class StorageService {
   }
 
   createVersion(key, data, timestamp) {
+    if (!this.hasStorageAccess()) return
+
     const versionKey = this.versionKeyFor(key)
     const versions = this.parseJSON(localStorage.getItem(versionKey), [])
     const serialized = JSON.stringify(data)
@@ -145,6 +164,7 @@ class StorageService {
   }
 
   getVersionHistory(key) {
+    if (!this.hasStorageAccess()) return []
     const versions = this.parseJSON(localStorage.getItem(this.versionKeyFor(key)), [])
     return versions.map(v => ({ ...v, data: this.parseJSON(v.data) }))
   }
@@ -179,7 +199,9 @@ class StorageService {
       return response.data
     } catch (error) {
       console.error('Feil ved server-lagring:', error)
-      this.saveLocal(`server_fallback_${endpoint}`, data)
+      if (this.hasStorageAccess()) {
+        this.saveLocal(`server_fallback_${endpoint}`, data, { createVersion: false })
+      }
       throw error
     }
   }
@@ -197,10 +219,12 @@ class StorageService {
       return response.data
     } catch (error) {
       console.error('Feil ved server-lasting:', error)
-      const fallback = this.loadLocal(`server_fallback_${endpoint}`)
-      if (fallback) {
-        console.log('📦 Bruker lokal fallback data')
-        return fallback
+      if (this.hasStorageAccess()) {
+        const fallback = this.loadLocal(`server_fallback_${endpoint}`)
+        if (fallback) {
+          console.log('📦 Bruker lokal fallback data')
+          return fallback
+        }
       }
       throw error
     }
@@ -210,21 +234,29 @@ class StorageService {
    * Auto-save handling
    */
   enableAutoSave(saveFunction, interval = 30000) {
+    if (!this.isBrowser) return
+
     if (this.autoSaveInterval) {
       clearInterval(this.autoSaveInterval)
     }
 
-    this.autoSaveInterval = setInterval(() => {
-      if (this.pendingChanges) {
-        saveFunction?.()
+    this.autoSaveInterval = setInterval(async () => {
+      if (!this.pendingChanges || typeof saveFunction !== 'function') return
+
+      try {
+        await Promise.resolve(saveFunction())
         this.pendingChanges = false
+        this.lastSaved = new Date().toISOString()
+        this.notifySave('auto', this.lastSaved)
+      } catch (error) {
+        console.error('Auto-save feilet:', error)
       }
     }, interval)
 
     if (!this.beforeUnloadHandler) {
       this.beforeUnloadHandler = (e) => {
-        if (this.pendingChanges) {
-          saveFunction?.()
+        if (this.pendingChanges && typeof saveFunction === 'function') {
+          saveFunction()
           e.preventDefault()
           e.returnValue = 'Du har ulagrede endringer. Er du sikker på at du vil forlate siden?'
         }
@@ -238,7 +270,7 @@ class StorageService {
       clearInterval(this.autoSaveInterval)
       this.autoSaveInterval = null
     }
-    if (this.beforeUnloadHandler) {
+    if (this.beforeUnloadHandler && this.isBrowser) {
       window.removeEventListener('beforeunload', this.beforeUnloadHandler)
       this.beforeUnloadHandler = null
     }
@@ -246,6 +278,10 @@ class StorageService {
 
   markAsChanged() {
     this.pendingChanges = true
+  }
+
+  resetPendingChanges() {
+    this.pendingChanges = false
   }
 
   hasUnsavedChanges() {
@@ -256,6 +292,7 @@ class StorageService {
    * Data import/export helpers
    */
   exportData(data, filename = 'asset3d_export') {
+    if (!this.isBrowser || !this.hasDocument) return
     const dataStr = JSON.stringify(data, null, 2)
     const dataBlob = new Blob([dataStr], { type: 'application/json' })
     const url = URL.createObjectURL(dataBlob)
@@ -270,6 +307,8 @@ class StorageService {
   }
 
   async importData(file) {
+    if (!this.isBrowser) throw new Error('Import krever nettleser-miljø')
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = (e) => {
@@ -292,8 +331,16 @@ class StorageService {
    */
   async saveBuilding(building, token) {
     try {
-      const key = 'current_building'
-      this.saveLocal(key, building)
+      const primaryKey = 'current_building'
+      const buildingKey = building?.id ? `building_${building.id}` : primaryKey
+
+      // Lagre med versjonshistorikk for gjeldende visning
+      this.saveLocal(primaryKey, building, { createVersion: true })
+
+      // Lagre separat per bygning for multi-building støtte
+      if (buildingKey !== primaryKey) {
+        this.saveLocal(buildingKey, building, { createVersion: true })
+      }
 
       if (token) {
         try {
@@ -312,6 +359,8 @@ class StorageService {
   }
 
   async loadBuilding(buildingId, token) {
+    const buildingKey = buildingId ? `building_${buildingId}` : 'current_building'
+
     if (token && buildingId) {
       try {
         const serverData = await this.loadFromServer(`buildings/${buildingId}`, token)
@@ -321,16 +370,17 @@ class StorageService {
       }
     }
 
-    return this.loadLocal('current_building')
+    return this.loadLocal(buildingKey) || this.loadLocal('current_building')
   }
 
   saveRoom(roomData) {
+    if (!roomData?.id) return false
     const rooms = this.loadLocal('rooms') || {}
     rooms[roomData.id] = {
       ...roomData,
       lastModified: new Date().toISOString()
     }
-    this.saveLocal('rooms', rooms)
+    this.saveLocal('rooms', rooms, { createVersion: false })
     this.markAsChanged()
     return true
   }
@@ -341,7 +391,7 @@ class StorageService {
   }
 
   saveAssets(assets) {
-    this.saveLocal('assets', assets)
+    this.saveLocal('assets', assets, { createVersion: false })
     this.markAsChanged()
     return true
   }
@@ -351,6 +401,7 @@ class StorageService {
   }
 
   clearLocalData() {
+    if (!this.hasStorageAccess()) return
     const keys = Object.keys(localStorage)
     keys.forEach(key => {
       if (key.startsWith(this.storageKey)) {
@@ -361,6 +412,16 @@ class StorageService {
   }
 
   getStorageInfo() {
+    if (!this.hasStorageAccess()) {
+      return {
+        itemCount: 0,
+        totalSize: '0.00 KB',
+        lastSaved: this.lastSaved,
+        hasUnsavedChanges: this.pendingChanges,
+        items: []
+      }
+    }
+
     const keys = Object.keys(localStorage).filter(k => k.startsWith(this.storageKey))
     const items = keys.map(key => {
       const value = localStorage.getItem(key) || ''
