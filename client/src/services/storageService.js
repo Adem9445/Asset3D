@@ -1,6 +1,7 @@
 /**
  * Storage Service for ASSET3D
- * Håndterer all lagring og lasting av data
+ * Sentraliserer lokal lagring, versjonshåndtering og server-synkronisering
+ * med tydelig ansvar for tastatursnarveier, auto-save og fallback-lagring.
  */
 
 import axios from 'axios'
@@ -10,88 +11,113 @@ const API_URL = '/api'
 class StorageService {
   constructor() {
     this.storageKey = 'asset3d_data'
-    this.autoSaveInterval = null
+    this.maxVersions = 10
     this.pendingChanges = false
     this.lastSaved = null
-    this.saveCallbacks = []
-    this.versionHistory = []
-    this.maxVersions = 10
+    this.autoSaveInterval = null
+    this.beforeUnloadHandler = null
+    this.saveCallbacks = new Set()
     this.keyboardShortcuts = new Map()
 
-    // Initialize keyboard shortcuts
+    this.isBrowser = typeof window !== 'undefined'
+    this.hasDocument = typeof document !== 'undefined'
+    this.handleKeydown = this.handleKeydown.bind(this)
+
     this.initializeKeyboardShortcuts()
   }
 
   /**
-   * Initialize keyboard shortcut handling
+   * Keyboard shortcut handling
    */
   initializeKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
-      const key = this.getKeyCombo(e)
-      const handler = this.keyboardShortcuts.get(key)
-      if (handler) {
-        e.preventDefault()
-        handler(e)
-      }
-    })
+    if (!this.hasDocument) return
+    document.addEventListener('keydown', this.handleKeydown)
   }
 
-  /**
-   * Get keyboard combo string
-   */
+  disposeKeyboardShortcuts() {
+    if (!this.hasDocument) return
+    document.removeEventListener('keydown', this.handleKeydown)
+  }
+
+  handleKeydown(event) {
+    const key = this.getKeyCombo(event)
+    const handler = this.keyboardShortcuts.get(key)
+    if (handler) {
+      event.preventDefault()
+      handler(event)
+    }
+  }
+
   getKeyCombo(event) {
     const parts = []
     if (event.ctrlKey) parts.push('ctrl')
     if (event.altKey) parts.push('alt')
     if (event.shiftKey) parts.push('shift')
     if (event.metaKey) parts.push('cmd')
-    if (event.key) {
-      parts.push(event.key.toLowerCase())
-    }
+    if (event.key) parts.push(event.key.toLowerCase())
     return parts.join('+')
   }
 
-  /**
-   * Register keyboard shortcut
-   */
   registerShortcut(combo, handler) {
-    this.keyboardShortcuts.set(combo.toLowerCase(), handler)
+    if (!combo || typeof handler !== 'function') return () => {}
+    const normalized = combo.toLowerCase()
+    this.keyboardShortcuts.set(normalized, handler)
+    return () => this.keyboardShortcuts.delete(normalized)
   }
 
   /**
-   * Register save callback
+   * Save callback handling
    */
   onSave(callback) {
-    this.saveCallbacks.push(callback)
-    return () => {
-      this.saveCallbacks = this.saveCallbacks.filter(cb => cb !== callback)
+    if (!callback) return () => {}
+    this.saveCallbacks.add(callback)
+    return () => this.saveCallbacks.delete(callback)
+  }
+
+  notifySave(key, timestamp) {
+    this.saveCallbacks.forEach(callback => callback({ key, timestamp }))
+  }
+
+  /**
+   * Helpers for storage keys & parsing
+   */
+  storageKeyFor(key) {
+    return `${this.storageKey}_${key}`
+  }
+
+  versionKeyFor(key) {
+    return `${this.storageKey}_version_${key}`
+  }
+
+  hasStorageAccess() {
+    return this.isBrowser && typeof localStorage !== 'undefined'
+  }
+
+  parseJSON(value, fallback = null) {
+    try {
+      return JSON.parse(value)
+    } catch (error) {
+      return fallback
     }
   }
 
   /**
-   * Lagre data lokalt (localStorage) with versioning
+   * Local storage helpers
    */
-  saveLocal(key, data, createVersion = true) {
+  saveLocal(key, data, { createVersion = true } = {}) {
+    if (!this.hasStorageAccess()) return false
+
     try {
       const timestamp = new Date().toISOString()
-      const saveData = {
-        data,
-        timestamp,
-        version: '1.0.0'
-      }
+      const payload = { data, timestamp, version: '1.0.0' }
 
-      // Create version if enabled
       if (createVersion) {
         this.createVersion(key, data, timestamp)
       }
 
-      localStorage.setItem(`${this.storageKey}_${key}`, JSON.stringify(saveData))
+      localStorage.setItem(this.storageKeyFor(key), JSON.stringify(payload))
       this.lastSaved = timestamp
-      console.log(`✅ Data lagret lokalt: ${key}`)
-
-      // Notify save callbacks
-      this.saveCallbacks.forEach(callback => callback({ key, timestamp }))
-
+      this.notifySave(key, timestamp)
       return true
     } catch (error) {
       console.error('Feil ved lokal lagring:', error)
@@ -99,32 +125,35 @@ class StorageService {
     }
   }
 
-  /**
-   * Create a version entry
-   */
-  createVersion(key, data, timestamp) {
-    const versionKey = `${this.storageKey}_version_${key}`
-    let versions = []
+  loadLocal(key) {
+    if (!this.hasStorageAccess()) return null
 
     try {
-      const existing = localStorage.getItem(versionKey)
-      if (existing) {
-        versions = JSON.parse(existing)
-      }
+      const saved = localStorage.getItem(this.storageKeyFor(key))
+      if (!saved) return null
+      const parsed = this.parseJSON(saved)
+      return parsed?.data ?? null
     } catch (error) {
-      console.error('Error loading versions:', error)
+      console.error('Feil ved lokal lasting:', error)
+      return null
     }
+  }
 
-    // Add new version
+  createVersion(key, data, timestamp) {
+    if (!this.hasStorageAccess()) return
+
+    const versionKey = this.versionKeyFor(key)
+    const versions = this.parseJSON(localStorage.getItem(versionKey), [])
+    const serialized = JSON.stringify(data)
+
     versions.unshift({
       timestamp,
-      data: JSON.stringify(data),
-      size: JSON.stringify(data).length
+      data: serialized,
+      size: serialized.length
     })
 
-    // Keep only max versions
     if (versions.length > this.maxVersions) {
-      versions = versions.slice(0, this.maxVersions)
+      versions.length = this.maxVersions
     }
 
     try {
@@ -134,62 +163,26 @@ class StorageService {
     }
   }
 
-  /**
-   * Get version history
-   */
   getVersionHistory(key) {
-    const versionKey = `${this.storageKey}_version_${key}`
-    try {
-      const versions = localStorage.getItem(versionKey)
-      if (versions) {
-        return JSON.parse(versions).map(v => ({
-          ...v,
-          data: JSON.parse(v.data)
-        }))
-      }
-    } catch (error) {
-      console.error('Error loading version history:', error)
-    }
-    return []
+    if (!this.hasStorageAccess()) return []
+    const versions = this.parseJSON(localStorage.getItem(this.versionKeyFor(key)), [])
+    return versions.map(v => ({ ...v, data: this.parseJSON(v.data) }))
   }
 
-  /**
-   * Restore from version
-   */
   restoreVersion(key, timestamp) {
-    const versions = this.getVersionHistory(key)
-    const version = versions.find(v => v.timestamp === timestamp)
+    const version = this.getVersionHistory(key).find(v => v.timestamp === timestamp)
 
-    if (version) {
-      this.saveLocal(key, version.data, false) // Don't create new version when restoring
-      console.log(`♻️ Restored version from ${timestamp}`)
-      return version.data
+    if (!version) {
+      console.error('Version not found:', timestamp)
+      return null
     }
 
-    console.error('Version not found:', timestamp)
-    return null
+    this.saveLocal(key, version.data, { createVersion: false })
+    return version.data
   }
 
   /**
-   * Last data lokalt
-   */
-  loadLocal(key) {
-    try {
-      const saved = localStorage.getItem(`${this.storageKey}_${key}`)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        console.log(`✅ Data lastet lokalt: ${key}`)
-        return parsed.data
-      }
-      return null
-    } catch (error) {
-      console.error('Feil ved lokal lasting:', error)
-      return null
-    }
-  }
-
-  /**
-   * Lagre til server
+   * Server communication helpers
    */
   async saveToServer(endpoint, data, token) {
     try {
@@ -198,92 +191,108 @@ class StorageService {
         data,
         {
           headers: {
-            'Authorization': `Bearer ${token}`,
+            Authorization: token ? `Bearer ${token}` : undefined,
             'Content-Type': 'application/json'
           }
         }
       )
-      console.log(`✅ Data lagret til server: ${endpoint}`)
       return response.data
     } catch (error) {
       console.error('Feil ved server-lagring:', error)
-      // Fallback til lokal lagring
-      this.saveLocal(`server_fallback_${endpoint}`, data)
+      if (this.hasStorageAccess()) {
+        this.saveLocal(`server_fallback_${endpoint}`, data, { createVersion: false })
+      }
       throw error
     }
   }
 
-  /**
-   * Last fra server
-   */
   async loadFromServer(endpoint, token) {
     try {
       const response = await axios.get(
         `${API_URL}/${endpoint}`,
         {
           headers: {
-            'Authorization': `Bearer ${token}`
+            Authorization: token ? `Bearer ${token}` : undefined
           }
         }
       )
-      console.log(`✅ Data lastet fra server: ${endpoint}`)
       return response.data
     } catch (error) {
       console.error('Feil ved server-lasting:', error)
-      // Prøv lokal fallback
-      const fallback = this.loadLocal(`server_fallback_${endpoint}`)
-      if (fallback) {
-        console.log('📦 Bruker lokal fallback data')
-        return fallback
+      if (this.hasStorageAccess()) {
+        const fallback = this.loadLocal(`server_fallback_${endpoint}`)
+        if (fallback) {
+          console.log('📦 Bruker lokal fallback data')
+          return fallback
+        }
       }
       throw error
     }
   }
 
   /**
-   * Auto-save funksjonalitet
+   * Auto-save handling
    */
   enableAutoSave(saveFunction, interval = 30000) {
+    if (!this.isBrowser) return
+
     if (this.autoSaveInterval) {
       clearInterval(this.autoSaveInterval)
     }
 
-    this.autoSaveInterval = setInterval(() => {
-      if (this.pendingChanges) {
-        saveFunction()
+    this.autoSaveInterval = setInterval(async () => {
+      if (!this.pendingChanges || typeof saveFunction !== 'function') return
+
+      try {
+        await Promise.resolve(saveFunction())
         this.pendingChanges = false
-        console.log('💾 Auto-lagring utført')
+        this.lastSaved = new Date().toISOString()
+        this.notifySave('auto', this.lastSaved)
+      } catch (error) {
+        console.error('Auto-save feilet:', error)
       }
     }, interval)
 
-    // Lagre ved window unload
-    window.addEventListener('beforeunload', (e) => {
-      if (this.pendingChanges) {
-        saveFunction()
-        e.preventDefault()
-        e.returnValue = 'Du har ulagrede endringer. Er du sikker på at du vil forlate siden?'
+    if (!this.beforeUnloadHandler) {
+      this.beforeUnloadHandler = (e) => {
+        if (this.pendingChanges && typeof saveFunction === 'function') {
+          saveFunction()
+          e.preventDefault()
+          e.returnValue = 'Du har ulagrede endringer. Er du sikker på at du vil forlate siden?'
+        }
       }
-    })
+      window.addEventListener('beforeunload', this.beforeUnloadHandler)
+    }
   }
 
-  /**
-   * Marker at det er endringer som må lagres
-   */
+  disableAutoSave() {
+    if (this.autoSaveInterval) {
+      clearInterval(this.autoSaveInterval)
+      this.autoSaveInterval = null
+    }
+    if (this.beforeUnloadHandler && this.isBrowser) {
+      window.removeEventListener('beforeunload', this.beforeUnloadHandler)
+      this.beforeUnloadHandler = null
+    }
+  }
+
   markAsChanged() {
     this.pendingChanges = true
   }
 
-  /**
-   * Sjekk om det er ulagrede endringer
-   */
+  resetPendingChanges() {
+    this.pendingChanges = false
+  }
+
   hasUnsavedChanges() {
     return this.pendingChanges
   }
 
   /**
-   * Eksporter data
+   * Data import/export helpers
    */
   exportData(data, filename = 'asset3d_export') {
+    if (!this.isBrowser || !this.hasDocument) return
     const dataStr = JSON.stringify(data, null, 2)
     const dataBlob = new Blob([dataStr], { type: 'application/json' })
     const url = URL.createObjectURL(dataBlob)
@@ -297,10 +306,9 @@ class StorageService {
     console.log(`📥 Data eksportert: ${filename}`)
   }
 
-  /**
-   * Importer data
-   */
   async importData(file) {
+    if (!this.isBrowser) throw new Error('Import krever nettleser-miljø')
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = (e) => {
@@ -319,134 +327,21 @@ class StorageService {
   }
 
   /**
-   * Last fra server
-   */
-  async loadFromServer(endpoint, token) {
-    try {
-      const response = await axios.get(
-        `${API_URL}/${endpoint}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      )
-      console.log(`✅ Data lastet fra server: ${endpoint}`)
-      return response.data
-    } catch (error) {
-      console.error('Feil ved server-lasting:', error)
-      // Prøv lokal fallback
-      const fallback = this.loadLocal(`server_fallback_${endpoint}`)
-      if (fallback) {
-        console.log('📦 Bruker lokal fallback data')
-        return fallback
-      }
-      throw error
-    }
-  }
-
-  /**
-   * Auto-save funksjonalitet
-   */
-  enableAutoSave(saveFunction, interval = 30000) {
-    if (this.autoSaveInterval) {
-      clearInterval(this.autoSaveInterval)
-    }
-
-    this.autoSaveInterval = setInterval(() => {
-      if (this.pendingChanges) {
-        saveFunction()
-        this.pendingChanges = false
-        console.log('💾 Auto-lagring utført')
-      }
-    }, interval)
-
-    // Lagre ved window unload
-    window.addEventListener('beforeunload', (e) => {
-      if (this.pendingChanges) {
-        saveFunction()
-        e.preventDefault()
-        e.returnValue = 'Du har ulagrede endringer. Er du sikker på at du vil forlate siden?'
-      }
-    })
-  }
-
-  /**
-   * Marker at det er endringer som må lagres
-   */
-  markAsChanged() {
-    this.pendingChanges = true
-  }
-
-  /**
-   * Sjekk om det er ulagrede endringer
-   */
-  hasUnsavedChanges() {
-    return this.pendingChanges
-  }
-
-  /**
-   * Eksporter data
-   */
-  exportData(data, filename = 'asset3d_export') {
-    const dataStr = JSON.stringify(data, null, 2)
-    const dataBlob = new Blob([dataStr], { type: 'application/json' })
-    const url = URL.createObjectURL(dataBlob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${filename}_${Date.now()}.json`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-    console.log(`📥 Data eksportert: ${filename}`)
-  }
-
-  /**
-   * Importer data
-   */
-  async importData(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        try {
-          const data = JSON.parse(e.target.result)
-          console.log(`📤 Data importert fra fil: ${file.name}`)
-          resolve(data)
-        } catch (error) {
-          console.error('Feil ved import:', error)
-          reject(error)
-        }
-      }
-      reader.onerror = reject
-      reader.readAsText(file)
-    })
-  }
-
-  /**
-   * Lagre byggning komplett
+   * Domain-specific helpers
    */
   async saveBuilding(building, token) {
     try {
-      console.log('Saving building with floors:', building.floors?.length, 'rooms:', building.rooms?.length)
+      const primaryKey = 'current_building'
+      const buildingKey = building?.id ? `building_${building.id}` : primaryKey
 
-      // Log asset distribution across floors
-      building.floors?.forEach(floor => {
-        const floorAssets = floor.rooms?.reduce((sum, roomRef) => {
-          const room = building.rooms.find(r => r.id === roomRef.id)
-          return sum + (room?.assets?.length || 0)
-        }, 0) || 0
-        console.log(`Floor "${floor.name}": ${floor.rooms?.length || 0} rooms, ${floorAssets} assets`)
-      })
+      // Lagre med versjonshistorikk for gjeldende visning
+      this.saveLocal(primaryKey, building, { createVersion: true })
 
-      const timestamp = Date.now()
-      const key = `building_${building.id}_v${timestamp}`
-      const mainKey = `current_building`
+      // Lagre separat per bygning for multi-building støtte
+      if (buildingKey !== primaryKey) {
+        this.saveLocal(buildingKey, building, { createVersion: true })
+      }
 
-      // Lagre lokalt først
-      this.saveLocal(mainKey, building)
-
-      // Deretter prøv server
       if (token) {
         try {
           await this.saveToServer('buildings/save', building, token)
@@ -463,11 +358,9 @@ class StorageService {
     }
   }
 
-  /**
-   * Last byggning
-   */
   async loadBuilding(buildingId, token) {
-    // Prøv server først
+    const buildingKey = buildingId ? `building_${buildingId}` : 'current_building'
+
     if (token && buildingId) {
       try {
         const serverData = await this.loadFromServer(`buildings/${buildingId}`, token)
@@ -477,52 +370,38 @@ class StorageService {
       }
     }
 
-    // Fallback til lokal
-    return this.loadLocal('current_building')
+    return this.loadLocal(buildingKey) || this.loadLocal('current_building')
   }
 
-  /**
-   * Lagre rom
-   */
   saveRoom(roomData) {
+    if (!roomData?.id) return false
     const rooms = this.loadLocal('rooms') || {}
     rooms[roomData.id] = {
       ...roomData,
       lastModified: new Date().toISOString()
     }
-    this.saveLocal('rooms', rooms)
+    this.saveLocal('rooms', rooms, { createVersion: false })
     this.markAsChanged()
     return true
   }
 
-  /**
-   * Last rom
-   */
   loadRoom(roomId) {
     const rooms = this.loadLocal('rooms') || {}
     return rooms[roomId] || null
   }
 
-  /**
-   * Lagre assets
-   */
   saveAssets(assets) {
-    this.saveLocal('assets', assets)
+    this.saveLocal('assets', assets, { createVersion: false })
     this.markAsChanged()
     return true
   }
 
-  /**
-   * Last assets
-   */
   loadAssets() {
     return this.loadLocal('assets') || []
   }
 
-  /**
-   * Slett all lokal data
-   */
   clearLocalData() {
+    if (!this.hasStorageAccess()) return
     const keys = Object.keys(localStorage)
     keys.forEach(key => {
       if (key.startsWith(this.storageKey)) {
@@ -532,25 +411,37 @@ class StorageService {
     console.log('🗑️ All lokal data slettet')
   }
 
-  /**
-   * Få lagringsstatus
-   */
   getStorageInfo() {
-    const keys = Object.keys(localStorage)
-    const relevantKeys = keys.filter(k => k.startsWith(this.storageKey))
-    const totalSize = relevantKeys.reduce((sum, key) => {
-      return sum + localStorage.getItem(key).length
+    if (!this.hasStorageAccess()) {
+      return {
+        itemCount: 0,
+        totalSize: '0.00 KB',
+        lastSaved: this.lastSaved,
+        hasUnsavedChanges: this.pendingChanges,
+        items: []
+      }
+    }
+
+    const keys = Object.keys(localStorage).filter(k => k.startsWith(this.storageKey))
+    const items = keys.map(key => {
+      const value = localStorage.getItem(key) || ''
+      return {
+        key: key.replace(`${this.storageKey}_`, ''),
+        size: (value.length / 1024).toFixed(2) + ' KB'
+      }
+    })
+
+    const totalSize = items.reduce((sum, item) => {
+      const size = parseFloat(item.size)
+      return sum + (Number.isNaN(size) ? 0 : size)
     }, 0)
 
     return {
-      itemCount: relevantKeys.length,
-      totalSize: (totalSize / 1024).toFixed(2) + ' KB',
+      itemCount: items.length,
+      totalSize: totalSize.toFixed(2) + ' KB',
       lastSaved: this.lastSaved,
       hasUnsavedChanges: this.pendingChanges,
-      items: relevantKeys.map(key => ({
-        key: key.replace(this.storageKey + '_', ''),
-        size: (localStorage.getItem(key).length / 1024).toFixed(2) + ' KB'
-      }))
+      items
     }
   }
 }
