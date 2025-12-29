@@ -57,7 +57,7 @@ export const useAuthStore = create(
       },
 
       checkAuth: async () => {
-        const { token, csrfToken } = get()
+        const { token } = get()
         if (!token) {
           set({ isAuthenticated: false })
           return

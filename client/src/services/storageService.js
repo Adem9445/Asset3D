@@ -319,111 +319,6 @@ class StorageService {
   }
 
   /**
-   * Last fra server
-   */
-  async loadFromServer(endpoint, token) {
-    try {
-      const response = await axios.get(
-        `${API_URL}/${endpoint}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      )
-      console.log(`✅ Data lastet fra server: ${endpoint}`)
-      return response.data
-    } catch (error) {
-      console.error('Feil ved server-lasting:', error)
-      // Prøv lokal fallback
-      const fallback = this.loadLocal(`server_fallback_${endpoint}`)
-      if (fallback) {
-        console.log('📦 Bruker lokal fallback data')
-        return fallback
-      }
-      throw error
-    }
-  }
-
-  /**
-   * Auto-save funksjonalitet
-   */
-  enableAutoSave(saveFunction, interval = 30000) {
-    if (this.autoSaveInterval) {
-      clearInterval(this.autoSaveInterval)
-    }
-
-    this.autoSaveInterval = setInterval(() => {
-      if (this.pendingChanges) {
-        saveFunction()
-        this.pendingChanges = false
-        console.log('💾 Auto-lagring utført')
-      }
-    }, interval)
-
-    // Lagre ved window unload
-    window.addEventListener('beforeunload', (e) => {
-      if (this.pendingChanges) {
-        saveFunction()
-        e.preventDefault()
-        e.returnValue = 'Du har ulagrede endringer. Er du sikker på at du vil forlate siden?'
-      }
-    })
-  }
-
-  /**
-   * Marker at det er endringer som må lagres
-   */
-  markAsChanged() {
-    this.pendingChanges = true
-  }
-
-  /**
-   * Sjekk om det er ulagrede endringer
-   */
-  hasUnsavedChanges() {
-    return this.pendingChanges
-  }
-
-  /**
-   * Eksporter data
-   */
-  exportData(data, filename = 'asset3d_export') {
-    const dataStr = JSON.stringify(data, null, 2)
-    const dataBlob = new Blob([dataStr], { type: 'application/json' })
-    const url = URL.createObjectURL(dataBlob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${filename}_${Date.now()}.json`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-    console.log(`📥 Data eksportert: ${filename}`)
-  }
-
-  /**
-   * Importer data
-   */
-  async importData(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        try {
-          const data = JSON.parse(e.target.result)
-          console.log(`📤 Data importert fra fil: ${file.name}`)
-          resolve(data)
-        } catch (error) {
-          console.error('Feil ved import:', error)
-          reject(error)
-        }
-      }
-      reader.onerror = reject
-      reader.readAsText(file)
-    })
-  }
-
-  /**
    * Lagre byggning komplett
    */
   async saveBuilding(building, token) {
@@ -439,8 +334,8 @@ class StorageService {
         console.log(`Floor "${floor.name}": ${floor.rooms?.length || 0} rooms, ${floorAssets} assets`)
       })
 
-      const timestamp = Date.now()
-      const key = `building_${building.id}_v${timestamp}`
+      // const timestamp = Date.now()
+      // const key = `building_${building.id}_v${timestamp}`
       const mainKey = `current_building`
 
       // Lagre lokalt først
